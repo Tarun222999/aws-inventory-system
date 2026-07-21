@@ -12,6 +12,8 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "check": "npm run typecheck && npm run lint && npm run format:check",
+    "db:generate": "npm run db:generate --workspace @order-platform/database",
+    "db:migrate": "npm run db:migrate --workspace @order-platform/database",
     "dev:api": "npm run dev --workspace @order-platform/api",
     "dev:worker": "npm run dev --workspace @order-platform/worker",
     "format": "prettier --write .",

@@ -41,7 +41,7 @@ it surviving a restart.
 
 - [x] Record the application, state, transaction, and async boundaries.
 - [x] Scaffold the TypeScript workspace and local PostgreSQL environment.
-- [ ] Add migrations for products, inventory, orders, order items, and pending
+- [x] Add migrations for products, inventory, orders, order items, and pending
       background work.
 - [ ] Implement health and readiness with structured logging and graceful
       shutdown.
@@ -85,6 +85,31 @@ it surviving a restart.
 - Started local container `order-platform-postgres-1`; Docker reported it
   healthy and `pg_isready` reported that it accepts connections on port 5432.
 - No application schema or business behaviour has been added yet.
+- AWS actions/resources: none.
+
+### 2026-07-21 — Step 2 database foundation
+
+- Chose PostgreSQL-generated UUID primary keys for externally visible records.
+- Added the shared `@order-platform/database` package using Drizzle ORM and the
+  PostgreSQL `pg` driver, with a bounded connection pool factory.
+- Defined and migrated five tables: `products`, `inventory`, `orders`,
+  `order_items`, and `jobs`.
+- Money is stored as integer paise. Order items snapshot purchase-time SKU,
+  name, unit price, quantity, and line total.
+- PostgreSQL constraints enforce non-blank product/job identifiers, positive
+  prices and quantities, non-negative inventory and attempts, consistent line
+  totals, unique SKUs, one product line per order, and one job type per order.
+- Foreign keys and indexes support ownership, deletion rules, product/order
+  lookup, stable order listing, and future worker job claiming.
+- Reviewed the generated SQL before applying migration
+  `0000_tired_annihilus.sql` to the local database.
+- Direct PostgreSQL inspection confirmed all five tables, UUID defaults,
+  constraints, indexes, foreign keys, and the Drizzle migration record.
+- Controlled failure: attempted to create a product and negative inventory in
+  one transaction. The inventory constraint rejected the write and the product
+  insert rolled back; persisted rows verified as zero.
+- Rebuild evidence: created a disposable empty local database, applied the
+  migration, verified all five public tables, and deleted the test database.
 - AWS actions/resources: none.
 
 ## Phase review (complete at exit)
