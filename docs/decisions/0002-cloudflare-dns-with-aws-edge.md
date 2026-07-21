@@ -2,8 +2,7 @@
 
 ## Status
 
-Accepted in principle during Phase 0; implementation details deferred to Phase
-8.
+Accepted in principle during Phase 0; implementation details deferred to Phase 8.
 
 ## Context
 

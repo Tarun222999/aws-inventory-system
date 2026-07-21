@@ -40,7 +40,7 @@ it surviving a restart.
 ## Incremental build plan and evidence
 
 - [x] Record the application, state, transaction, and async boundaries.
-- [ ] Scaffold the TypeScript workspace and local PostgreSQL environment.
+- [x] Scaffold the TypeScript workspace and local PostgreSQL environment.
 - [ ] Add migrations for products, inventory, orders, order items, and pending
       background work.
 - [ ] Implement health and readiness with structured logging and graceful
@@ -68,6 +68,24 @@ it surviving a restart.
 - Current Phase 1 status: in progress.
 - Cleanup status: `PARTIAL`, inherited solely from the documented Phase 0 root
   key follow-up; no Phase 1 cloud resources exist.
+
+### 2026-07-21 — Step 1 workspace foundation
+
+- Created npm workspaces for the API, worker, and shared configuration package.
+- Added strict shared TypeScript settings, ESLint, Prettier, and reproducible
+  dependency versions in `package-lock.json`.
+- Added validated API/worker environment configuration. `DATABASE_URL` is
+  required; ports and polling intervals are bounded and typed.
+- Added `.env.example` with local placeholders and ignored real `.env` files.
+- Added Docker Compose PostgreSQL `16.4-alpine` with a named local volume and
+  readiness health check.
+- Verified `npm run check`, production TypeScript builds, successful API and
+  worker configuration startup, and fail-fast startup when `DATABASE_URL` is
+  absent.
+- Started local container `order-platform-postgres-1`; Docker reported it
+  healthy and `pg_isready` reported that it accepts connections on port 5432.
+- No application schema or business behaviour has been added yet.
+- AWS actions/resources: none.
 
 ## Phase review (complete at exit)
 

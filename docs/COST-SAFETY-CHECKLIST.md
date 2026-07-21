@@ -35,12 +35,12 @@ complete until cleanup has been performed and verified.
 
 Suggested initial budget alerts:
 
-| Threshold | Meaning |
-|---|---|
-| 25% | Early warning; review the bill |
-| 50% | Review every active resource |
-| 75% | Do not create new paid resources until reviewed |
-| 100% | Stop the lesson and perform the emergency cleanup |
+| Threshold | Meaning                                           |
+| --------- | ------------------------------------------------- |
+| 25%       | Early warning; review the bill                    |
+| 50%       | Review every active resource                      |
+| 75%       | Do not create new paid resources until reviewed   |
+| 100%      | Stop the lesson and perform the emergency cleanup |
 
 The budget amount will be chosen after we inspect the account's credits and
 existing usage.
@@ -50,15 +50,15 @@ existing usage.
 Update this table whenever a resource is created, even if it is expected to
 exist for only a few minutes.
 
-| Resource | Name/ID | Region | Idle charge? | End-of-session action | Status |
-|---|---|---|---|---|---|
-| Example: EC2 instance | `learning-web-01` | `ap-south-1` | Disk remains billable when stopped | Terminate after exercise | Deleted/verified |
-| IAM Identity Center organization instance | Account identity foundation (identifier intentionally omitted) | `ap-south-1` | No direct or idle service charge | Retain for daily federated access; review at final teardown | RETAINED — JUSTIFIED |
-| IAM Identity Center user | Daily learning administrator (identifier intentionally omitted) | Global identity / primary Region `ap-south-1` | No direct or idle service charge | Retain for daily learning administration; review at final teardown | RETAINED — JUSTIFIED |
-| IAM Identity Center permission set and account assignment | `AdministratorAccess` for daily learning administrator | Global identity / primary Region `ap-south-1` | No direct or idle service charge | Retain for learning administration; reduce privilege as project roles mature | RETAINED — JUSTIFIED |
-| AWS monthly cost budget | `aws-order-platform-monthly-cost` | Global billing service | Monitoring and email notifications are free; no actions or reports intended | Retain with USD 5 monthly limit and 25/50/75/100% alerts | RETAINED — JUSTIFIED |
-| Legacy IAM user | Identifier intentionally omitted | Global IAM service | No direct or idle service charge; password-only access was a security risk | Login profile removed, policies detached, and user deleted; IAM user count verified as zero | DELETED — VERIFIED |
-| Root access keys (2) | Identifiers intentionally omitted | Global account credentials | No direct or idle service charge; inactive credentials remain a security concern | Both inactive; verify no dependency and delete by 2026-07-28 | RETAINED — JUSTIFIED |
+| Resource                                                  | Name/ID                                                         | Region                                        | Idle charge?                                                                     | End-of-session action                                                                       | Status               |
+| --------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------- |
+| Example: EC2 instance                                     | `learning-web-01`                                               | `ap-south-1`                                  | Disk remains billable when stopped                                               | Terminate after exercise                                                                    | Deleted/verified     |
+| IAM Identity Center organization instance                 | Account identity foundation (identifier intentionally omitted)  | `ap-south-1`                                  | No direct or idle service charge                                                 | Retain for daily federated access; review at final teardown                                 | RETAINED — JUSTIFIED |
+| IAM Identity Center user                                  | Daily learning administrator (identifier intentionally omitted) | Global identity / primary Region `ap-south-1` | No direct or idle service charge                                                 | Retain for daily learning administration; review at final teardown                          | RETAINED — JUSTIFIED |
+| IAM Identity Center permission set and account assignment | `AdministratorAccess` for daily learning administrator          | Global identity / primary Region `ap-south-1` | No direct or idle service charge                                                 | Retain for learning administration; reduce privilege as project roles mature                | RETAINED — JUSTIFIED |
+| AWS monthly cost budget                                   | `aws-order-platform-monthly-cost`                               | Global billing service                        | Monitoring and email notifications are free; no actions or reports intended      | Retain with USD 5 monthly limit and 25/50/75/100% alerts                                    | RETAINED — JUSTIFIED |
+| Legacy IAM user                                           | Identifier intentionally omitted                                | Global IAM service                            | No direct or idle service charge; password-only access was a security risk       | Login profile removed, policies detached, and user deleted; IAM user count verified as zero | DELETED — VERIFIED   |
+| Root access keys (2)                                      | Identifiers intentionally omitted                               | Global account credentials                    | No direct or idle service charge; inactive credentials remain a security concern | Both inactive; verify no dependency and delete by 2026-07-28                                | RETAINED — JUSTIFIED |
 
 Allowed status values:
 
@@ -171,10 +171,10 @@ that active resources are free.
 
 Nothing may be retained silently.
 
-| Resource | Reason retained | Expected residual cost | Review/delete date |
-|---|---|---:|---|
-| IAM Identity Center organization instance, AWS Organization, daily learning user, and permission set | Secure temporary-credential access for the learning account | $0 direct service cost | Final project teardown/security review |
-| Two inactive root access keys | Short observation period after replacement access was verified | $0 | 2026-07-28 |
+| Resource                                                                                             | Reason retained                                                | Expected residual cost | Review/delete date                     |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------: | -------------------------------------- |
+| IAM Identity Center organization instance, AWS Organization, daily learning user, and permission set | Secure temporary-credential access for the learning account    | $0 direct service cost | Final project teardown/security review |
+| Two inactive root access keys                                                                        | Short observation period after replacement access was verified |                     $0 | 2026-07-28                             |
 
 ## Emergency stop procedure
 

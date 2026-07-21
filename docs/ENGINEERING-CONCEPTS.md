@@ -555,16 +555,16 @@ the AWS Console open:
 
 ## Personal progress summary
 
-| Phase | Confidence (0-4) | Completed date | Main evidence | Revisit? |
-|---|---:|---|---|---|
-| 0 — Account/IAM/cost | 2 | 2026-07-21 | MFA, SSO caller/Region, billing/budget, IAM policy prediction, cross-Region/global inventory, cleanup ledger | Yes — global scope and idle costs |
-| 1 — Application boundaries | | | | |
-| 2 — EC2/diagnosis | | | | |
-| 3 — Networking | | | | |
-| 4 — ECS/deployments | | | | |
-| 5 — Data/storage/secrets | | | | |
-| 6 — Async reliability | | | | |
-| 7 — Events/notifications | | | | |
-| 8 — Operations/resilience | | | | |
-| 9 — Terraform/drift | | | | |
-| 10 — CI/CD/readiness | | | | |
+| Phase                      | Confidence (0-4) | Completed date | Main evidence                                                                                                | Revisit?                          |
+| -------------------------- | ---------------: | -------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| 0 — Account/IAM/cost       |                2 | 2026-07-21     | MFA, SSO caller/Region, billing/budget, IAM policy prediction, cross-Region/global inventory, cleanup ledger | Yes — global scope and idle costs |
+| 1 — Application boundaries |                  |                |                                                                                                              |                                   |
+| 2 — EC2/diagnosis          |                  |                |                                                                                                              |                                   |
+| 3 — Networking             |                  |                |                                                                                                              |                                   |
+| 4 — ECS/deployments        |                  |                |                                                                                                              |                                   |
+| 5 — Data/storage/secrets   |                  |                |                                                                                                              |                                   |
+| 6 — Async reliability      |                  |                |                                                                                                              |                                   |
+| 7 — Events/notifications   |                  |                |                                                                                                              |                                   |
+| 8 — Operations/resilience  |                  |                |                                                                                                              |                                   |
+| 9 — Terraform/drift        |                  |                |                                                                                                              |                                   |
+| 10 — CI/CD/readiness       |                  |                |                                                                                                              |                                   |

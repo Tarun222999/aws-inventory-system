@@ -54,6 +54,7 @@ Load Balancer as appropriate. The exact hostname, certificate-validation
 records, routing, and edge/origin design will be decided in Phase 8. Phase 0
 must not create or change domain, DNS, certificate, CloudFront, or load-balancer
 resources.
+
 - Delivery automation: GitHub Actions
 - AWS Region: Mumbai (`ap-south-1`)
 
@@ -438,31 +439,31 @@ infrastructure/
 
 ## Service coverage matrix
 
-| Service/concept | First introduced | Used for |
-|---|---|---|
-| IAM | Phase 0 | Human and workload permissions |
-| Budgets/Billing | Phase 0 | Cost safety |
-| EC2/EBS | Phase 2 | Manual compute fundamentals |
-| CloudWatch | Phase 2 | Logs, metrics, dashboards, alarms |
-| VPC | Phase 3 | Network isolation and routing |
-| ECR | Phase 4 | Container-image storage |
-| ECS Fargate | Phase 4 | Managed container compute |
-| ALB | Phase 4 | HTTP routing and health checks |
-| RDS PostgreSQL | Phase 5 | Relational application data |
-| S3 | Phase 5 | Product images, frontend, reports |
-| Secrets Manager | Phase 5 | Database/application secrets |
-| SQS | Phase 6 | Reliable background work and DLQs |
-| Lambda | Phase 6 | Event-driven processing |
-| EventBridge bus | Phase 7 | Domain-event routing |
-| EventBridge Scheduler | Phase 7 | Recurring inventory reports |
-| SNS | Phase 7 | Operational fan-out notifications |
-| SES | Phase 7 | Transactional customer email |
-| CloudFront | Phase 8 | Frontend/CDN delivery |
-| ACM | Phase 8 | TLS certificates |
-| Cloudflare DNS (external) | Phase 8 | Existing authoritative DNS and AWS endpoint routing |
-| CloudTrail | Phase 8 | API audit history |
-| Terraform | Phase 9 | Repeatable infrastructure and cleanup |
-| GitHub Actions | Phase 10 | Automated delivery |
+| Service/concept           | First introduced | Used for                                            |
+| ------------------------- | ---------------- | --------------------------------------------------- |
+| IAM                       | Phase 0          | Human and workload permissions                      |
+| Budgets/Billing           | Phase 0          | Cost safety                                         |
+| EC2/EBS                   | Phase 2          | Manual compute fundamentals                         |
+| CloudWatch                | Phase 2          | Logs, metrics, dashboards, alarms                   |
+| VPC                       | Phase 3          | Network isolation and routing                       |
+| ECR                       | Phase 4          | Container-image storage                             |
+| ECS Fargate               | Phase 4          | Managed container compute                           |
+| ALB                       | Phase 4          | HTTP routing and health checks                      |
+| RDS PostgreSQL            | Phase 5          | Relational application data                         |
+| S3                        | Phase 5          | Product images, frontend, reports                   |
+| Secrets Manager           | Phase 5          | Database/application secrets                        |
+| SQS                       | Phase 6          | Reliable background work and DLQs                   |
+| Lambda                    | Phase 6          | Event-driven processing                             |
+| EventBridge bus           | Phase 7          | Domain-event routing                                |
+| EventBridge Scheduler     | Phase 7          | Recurring inventory reports                         |
+| SNS                       | Phase 7          | Operational fan-out notifications                   |
+| SES                       | Phase 7          | Transactional customer email                        |
+| CloudFront                | Phase 8          | Frontend/CDN delivery                               |
+| ACM                       | Phase 8          | TLS certificates                                    |
+| Cloudflare DNS (external) | Phase 8          | Existing authoritative DNS and AWS endpoint routing |
+| CloudTrail                | Phase 8          | API audit history                                   |
+| Terraform                 | Phase 9          | Repeatable infrastructure and cleanup               |
+| GitHub Actions            | Phase 10         | Automated delivery                                  |
 
 ## Definition of done for every phase
 
