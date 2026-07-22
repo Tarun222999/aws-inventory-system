@@ -47,7 +47,7 @@ it surviving a restart.
       shutdown.
 - [x] Implement validated product creation and paginated product listing with
       intentional status codes.
-- [ ] Implement transactionally safe order acceptance and inventory changes.
+- [x] Implement transactionally safe order acceptance and inventory changes.
 - [ ] Implement the background worker and show accepted work survives a worker
       restart.
 - [ ] Add unit/integration tests and Docker packaging.
@@ -169,6 +169,30 @@ it surviving a restart.
 - Improved the worker wait helper to remove completed abort listeners rather
   than accumulating them across polling iterations.
 - PostgreSQL remains local-only and healthy. AWS actions/resources: none.
+
+### 2026-07-23 — Step 5 transactional order acceptance
+
+- Added validated `POST /orders` and `GET /orders/:id` endpoints.
+- Order input requires 1–50 unique product UUIDs with positive bounded integer
+  quantities.
+- The acceptance transaction locks all requested product/inventory rows in
+  consistent product-ID order, verifies existence and stock, calculates the
+  total, creates the pending order and purchase-time item snapshots, decrements
+  inventory, and records a durable `fulfill_order` job before committing.
+- Validation occurs before the transaction and no external work occurs while
+  row locks are held.
+- Intentional responses include `201` with `Location`, `200`, validation `400`,
+  missing product/order `404`, insufficient stock `409`, and dependency `503`.
+- Integration evidence: successful acceptance produced pending order/items/job
+  and correct remaining stock; a multi-item insufficient-stock failure rolled
+  back all changes; two concurrent requests for the final unit produced exactly
+  one committed order and one insufficient-stock failure.
+- All six product/order integration tests pass against real local PostgreSQL.
+- HTTP evidence: an order for two units returned `201`, `pending`, and the
+  correct total; lookup returned its item; a second attempt returned `409`.
+- The disposable HTTP order and product were deleted, and the API stopped
+  gracefully. PostgreSQL remains local-only and healthy.
+- AWS actions/resources: none.
 
 ## Phase review (complete at exit)
 

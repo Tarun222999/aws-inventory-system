@@ -10,6 +10,7 @@ import { checkDatabase, createDatabase } from "@order-platform/database";
 import { createLogger } from "@order-platform/logger";
 
 import { sendJson } from "./http/json.js";
+import { handleOrderRoute } from "./modules/orders/order.routes.js";
 import { handleProductRoute } from "./modules/products/product.routes.js";
 
 const config = loadApiConfig();
@@ -57,6 +58,16 @@ async function handleRequest(
 
   if (
     await handleProductRoute(request, response, {
+      database,
+      logger,
+      requestId,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleOrderRoute(request, response, {
       database,
       logger,
       requestId,
