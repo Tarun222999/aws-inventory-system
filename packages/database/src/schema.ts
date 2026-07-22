@@ -28,10 +28,10 @@ export const jobStatus = pgEnum("job_status", [
 ]);
 
 const timestamps = {
-  createdAt: timestamp("created_at", { withTimezone: true })
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 3 })
     .defaultNow()
     .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
     .defaultNow()
     .notNull(),
 };
@@ -48,6 +48,7 @@ export const products = pgTable(
   },
   (table) => [
     uniqueIndex("products_sku_unique").on(table.sku),
+    index("products_created_at_id_index").on(table.createdAt, table.id),
     check("products_price_positive", sql`${table.pricePaise} > 0`),
     check("products_sku_not_blank", sql`length(trim(${table.sku})) > 0`),
     check("products_name_not_blank", sql`length(trim(${table.name})) > 0`),
@@ -61,7 +62,7 @@ export const inventory = pgTable(
       .primaryKey()
       .references(() => products.id, { onDelete: "cascade" }),
     availableQuantity: integer("available_quantity").notNull().default(0),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
       .notNull(),
   },
@@ -130,10 +131,10 @@ export const jobs = pgTable(
     payload: jsonb("payload").notNull().default({}),
     status: jobStatus("status").notNull().default("pending"),
     attempts: integer("attempts").notNull().default(0),
-    availableAt: timestamp("available_at", { withTimezone: true })
+    availableAt: timestamp("available_at", { withTimezone: true, precision: 3 })
       .defaultNow()
       .notNull(),
-    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedAt: timestamp("locked_at", { withTimezone: true, precision: 3 }),
     lockedBy: varchar("locked_by", { length: 200 }),
     lastError: text("last_error"),
     ...timestamps,

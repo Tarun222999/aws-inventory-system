@@ -9,22 +9,20 @@ import { loadApiConfig } from "@order-platform/config";
 import { checkDatabase, createDatabase } from "@order-platform/database";
 import { createLogger } from "@order-platform/logger";
 
+import { sendJson } from "./http/json.js";
+import { handleProductRoute } from "./modules/products/product.routes.js";
+
 const config = loadApiConfig();
 const logger = createLogger("api");
-const { pool, close: closeDatabase } = createDatabase(config.DATABASE_URL, {
+const {
+  database,
+  pool,
+  close: closeDatabase,
+} = createDatabase(config.DATABASE_URL, {
   onPoolError: (error) => logger.error("Database pool error", error),
 });
 
 let shuttingDown = false;
-
-function sendJson(
-  response: ServerResponse,
-  statusCode: number,
-  body: Record<string, unknown>,
-) {
-  response.writeHead(statusCode, { "content-type": "application/json" });
-  response.end(JSON.stringify(body));
-}
 
 async function handleRequest(
   request: IncomingMessage,
@@ -54,6 +52,16 @@ async function handleRequest(
         reason: "database_unavailable",
       });
     }
+    return;
+  }
+
+  if (
+    await handleProductRoute(request, response, {
+      database,
+      logger,
+      requestId,
+    })
+  ) {
     return;
   }
 

@@ -8,6 +8,20 @@
       "when": 1784644150682,
       "tag": "0000_tired_annihilus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784745609752,
+      "tag": "0001_clammy_marvel_boy",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784746259065,
+      "tag": "0002_past_nitro",
+      "breakpoints": true
     }
   ]
 }

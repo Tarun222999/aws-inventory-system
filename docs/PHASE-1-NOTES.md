@@ -45,7 +45,7 @@ it surviving a restart.
       background work.
 - [x] Implement health and readiness with structured logging and graceful
       shutdown.
-- [ ] Implement validated product creation and paginated product listing with
+- [x] Implement validated product creation and paginated product listing with
       intentional status codes.
 - [ ] Implement transactionally safe order acceptance and inventory changes.
 - [ ] Implement the background worker and show accepted work survives a worker
@@ -139,6 +139,36 @@ it surviving a restart.
   test processes were identified by exact process ID/start time and removed.
 - PostgreSQL is running and healthy after the exercise; the local named volume
   remains intact. AWS actions/resources: none.
+
+### 2026-07-23 — Step 4 products and inventory
+
+- Split product HTTP parsing, validation, repository queries, and cursor logic
+  into explicit internal modules while retaining one modular-monolith API.
+- Added `POST /products`, `GET /products`, and `GET /products/:id`.
+- Product input is strict and bounded: trimmed SKU/name, integer positive price
+  in paise, non-negative initial quantity, optional bounded description, and a
+  16 KiB request-body limit.
+- Product and inventory rows are inserted in one short PostgreSQL transaction
+  after validation, preventing partial product creation.
+- Added intentional responses: `201` with `Location`, `200`, validation/JSON
+  `400`, missing product `404`, duplicate SKU `409`, oversized body `413`, and
+  dependency failure `503`.
+- Added keyset pagination ordered by `(created_at, id)`, a matching composite
+  index, a bounded `limit` of 1–100, an opaque cursor, and `limit + 1` retrieval
+  to detect the next page without a count query.
+- Standardized persisted application timestamps to millisecond precision so a
+  PostgreSQL cursor round-trips exactly through JavaScript `Date`.
+- Tests initially exposed a wrapped PostgreSQL unique-violation error and a
+  microsecond/millisecond cursor boundary bug. Both were fixed and rerun.
+- Integration evidence: atomic product/inventory creation, duplicate SKU
+  rejection, and cursor traversal all pass against real local PostgreSQL; test
+  data is deleted in cleanup blocks.
+- HTTP evidence: create/read/list succeeded; malformed or invalid input returned
+  `400`, a missing UUID returned `404`, and duplicate SKU returned `409`. The
+  disposable manual product was deleted and the API stopped gracefully.
+- Improved the worker wait helper to remove completed abort listeners rather
+  than accumulating them across polling iterations.
+- PostgreSQL remains local-only and healthy. AWS actions/resources: none.
 
 ## Phase review (complete at exit)
 

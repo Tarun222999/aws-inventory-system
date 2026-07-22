@@ -27,6 +27,8 @@ export function createDatabase(databaseUrl: string, options: DatabaseOptions) {
   };
 }
 
+export type Database = ReturnType<typeof createDatabase>["database"];
+
 export async function checkDatabase(pool: Pool): Promise<void> {
   await pool.query("select 1");
 }
