@@ -132,7 +132,7 @@ async function shutdown(signal: NodeJS.Signals) {
 }
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.once(signal, () => {
+  process.on(signal, () => {
     void shutdown(signal).catch((error: unknown) => {
       logger.error("Graceful shutdown failed", error);
       process.exitCode = 1;

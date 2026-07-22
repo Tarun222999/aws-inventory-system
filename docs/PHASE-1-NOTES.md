@@ -48,7 +48,7 @@ it surviving a restart.
 - [x] Implement validated product creation and paginated product listing with
       intentional status codes.
 - [x] Implement transactionally safe order acceptance and inventory changes.
-- [ ] Implement the background worker and show accepted work survives a worker
+- [x] Implement the background worker and show accepted work survives a worker
       restart.
 - [ ] Add unit/integration tests and Docker packaging.
 - [ ] Run a controlled local dependency failure and record the diagnosis.
@@ -193,6 +193,41 @@ it surviving a restart.
 - The disposable HTTP order and product were deleted, and the API stopped
   gracefully. PostgreSQL remains local-only and healthy.
 - AWS actions/resources: none.
+
+### 2026-07-23 — Step 6 durable background fulfillment
+
+- Implemented the worker as a separate Node.js process that reuses the shared
+  database and configuration packages while remaining independently
+  restartable from the API.
+- A short claim transaction selects eligible work with
+  `FOR UPDATE SKIP LOCKED`, marks the job `processing`, increments its attempt,
+  records lease ownership, and moves the order to `processing`. Fulfillment
+  runs after the transaction, so database locks are not held during slow work.
+- Completion and failure updates require the current lease owner. Successful
+  work marks the job `completed` and order `ready_to_ship`; failures either
+  schedule a bounded retry or mark both job and order failed after the maximum
+  attempt.
+- Processing leases expire. A replacement worker can reclaim stale work after
+  a crashed worker, while the former owner is prevented from completing a job
+  whose lease it no longer owns. This demonstrates that accepted work lives in
+  PostgreSQL rather than worker memory and survives worker restart or loss.
+- Graceful shutdown stops new polling and awaits the currently claimed job
+  before closing the database pool. Signal handlers are guarded and remain
+  installed so a repeated console signal cannot bypass the drain path.
+- Controlled local failure: the processor's explicit `simulateFailure` input
+  was exercised. Tests verified a retry with a future availability time,
+  followed by terminal job and order failure at the configured attempt limit.
+- Concurrency evidence: with two worker identities, exactly one claimed the
+  pending job; a non-owner could not complete it. Recovery evidence: a stale
+  processing lease was reclaimed and completed by a replacement worker.
+- End-to-end HTTP evidence: the API accepted an order as `pending`; the worker
+  claimed it, processed it, and the API subsequently returned
+  `ready_to_ship`. Structured worker logs included job ID, order ID, and
+  attempt without logging secrets.
+- All three worker PostgreSQL integration tests and all six API PostgreSQL
+  integration tests pass. The final database check found no jobs, orders, or
+  disposable `TEST-*`/`MANUAL-*` products.
+- PostgreSQL remains local-only. AWS actions/resources/credentials: none.
 
 ## Phase review (complete at exit)
 

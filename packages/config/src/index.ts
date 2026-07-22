@@ -24,6 +24,25 @@ const workerEnvironmentSchema = sharedEnvironmentSchema.extend({
     .min(100)
     .max(60_000)
     .default(1000),
+  WORKER_LEASE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(3_600_000)
+    .default(30_000),
+  WORKER_RETRY_DELAY_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(60_000)
+    .default(1_000),
+  WORKER_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(3),
+  WORKER_PROCESSING_DELAY_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(60_000)
+    .default(250),
 });
 
 function formatConfigurationError(error: z.ZodError): Error {
