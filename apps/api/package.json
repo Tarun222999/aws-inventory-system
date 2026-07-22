@@ -6,10 +6,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
-    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "start": "tsx --env-file-if-exists=../../.env src/main.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@order-platform/config": "0.1.0"
+    "@order-platform/config": "0.1.0",
+    "@order-platform/database": "0.1.0",
+    "@order-platform/logger": "0.1.0"
   }
 }

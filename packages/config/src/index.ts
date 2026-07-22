@@ -5,6 +5,12 @@ const sharedEnvironmentSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   DATABASE_URL: z.string().url().startsWith("postgresql://"),
+  SHUTDOWN_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(60_000)
+    .default(10_000),
 });
 
 const apiEnvironmentSchema = sharedEnvironmentSchema.extend({

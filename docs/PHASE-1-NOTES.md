@@ -43,7 +43,7 @@ it surviving a restart.
 - [x] Scaffold the TypeScript workspace and local PostgreSQL environment.
 - [x] Add migrations for products, inventory, orders, order items, and pending
       background work.
-- [ ] Implement health and readiness with structured logging and graceful
+- [x] Implement health and readiness with structured logging and graceful
       shutdown.
 - [ ] Implement validated product creation and paginated product listing with
       intentional status codes.
@@ -111,6 +111,34 @@ it surviving a restart.
 - Rebuild evidence: created a disposable empty local database, applied the
   migration, verified all five public tables, and deleted the test database.
 - AWS actions/resources: none.
+
+### 2026-07-21 — Step 3 lifecycle and dependency health
+
+- Connected the separate API and worker processes through the shared bounded
+  PostgreSQL pool.
+- Added structured JSON logging with timestamps, severity, component, errors,
+  request IDs, and lifecycle events; secrets are not logged.
+- Added `GET /health` as process liveness and `GET /ready` as a bounded
+  PostgreSQL readiness check. The API listens only on `127.0.0.1` locally.
+- Added consistent JSON `404` and unexpected `500` responses.
+- Added `SIGINT`/`SIGTERM` graceful shutdown: stop accepting new requests or
+  polling, wait for active work, close the database pool, and enforce a bounded
+  shutdown deadline.
+- Healthy evidence: `/health` and `/ready` returned `200`; caller request IDs
+  were echoed for traceability.
+- Controlled failure: stopping local PostgreSQL initially exposed unhandled
+  idle pool errors that terminated both processes. Added a pool error listener,
+  reran the failure, and verified both processes remained alive.
+- Corrected failure evidence: with PostgreSQL stopped, `/health` returned
+  `200`, `/ready` returned `503 database_unavailable`, and the worker logged
+  the dependency transition without terminating.
+- Recovery evidence: restarting PostgreSQL restored `/ready` to `200` without
+  restarting the API; the worker automatically reconnected.
+- Graceful shutdown evidence: interactive `Ctrl+C` produced shutdown-started
+  and shutdown-completed events for both API and worker. Remaining noninteractive
+  test processes were identified by exact process ID/start time and removed.
+- PostgreSQL is running and healthy after the exercise; the local named volume
+  remains intact. AWS actions/resources: none.
 
 ## Phase review (complete at exit)
 

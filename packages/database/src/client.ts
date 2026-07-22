@@ -3,13 +3,20 @@ import { Pool } from "pg";
 
 import * as schema from "./schema.js";
 
-export function createDatabase(databaseUrl: string) {
+type DatabaseOptions = {
+  onPoolError: (error: Error) => void;
+};
+
+export function createDatabase(databaseUrl: string, options: DatabaseOptions) {
   const pool = new Pool({
     connectionString: databaseUrl,
     max: 10,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
+    query_timeout: 2_000,
   });
+
+  pool.on("error", options.onPoolError);
 
   const database = drizzle({ client: pool, schema });
 
@@ -18,4 +25,8 @@ export function createDatabase(databaseUrl: string) {
     pool,
     close: () => pool.end(),
   };
+}
+
+export async function checkDatabase(pool: Pool): Promise<void> {
+  await pool.query("select 1");
 }
