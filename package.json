@@ -15,10 +15,12 @@
     "db:generate": "npm run db:generate --workspace @order-platform/database",
     "db:migrate": "npm run db:migrate --workspace @order-platform/database",
     "dev:api": "npm run dev --workspace @order-platform/api",
+    "dev:frontend": "npm run dev --workspace @order-platform/frontend",
     "dev:worker": "npm run dev --workspace @order-platform/worker",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {

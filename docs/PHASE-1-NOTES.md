@@ -50,6 +50,8 @@ it surviving a restart.
 - [x] Implement transactionally safe order acceptance and inventory changes.
 - [x] Implement the background worker and show accepted work survives a worker
       restart.
+- [x] Implement the React frontend for product/inventory management, order
+      creation, and asynchronous status viewing.
 - [ ] Add unit/integration tests and Docker packaging.
 - [ ] Run a controlled local dependency failure and record the diagnosis.
 - [ ] Verify no secrets are committed.
@@ -228,6 +230,53 @@ it surviving a restart.
   integration tests pass. The final database check found no jobs, orders, or
   disposable `TEST-*`/`MANUAL-*` products.
 - PostgreSQL remains local-only. AWS actions/resources/credentials: none.
+
+### 2026-07-23 — Step 7 React frontend
+
+- Added `apps/frontend` as a React + TypeScript workspace using Vite, within the
+  existing modular-monolith repository. It talks only to the existing API; no
+  backend routes or contracts were changed.
+- Local development uses a same-origin `/api` proxy. The optional
+  `VITE_API_BASE_URL` is public configuration only; database credentials and
+  server secrets remain outside the browser bundle.
+- Implemented a responsive, keyboard-accessible catalog with loading, empty,
+  unavailable-dependency, out-of-stock, and cursor-pagination states.
+- Added atomic product/opening-stock creation with client validation and clear
+  duplicate-SKU conflict handling.
+- Added an order builder that caps quantities to observed inventory, shows the
+  calculated total, and handles stock conflicts. A missing-product or
+  insufficient-stock conflict clears the cart, refetches the first catalog
+  page, and tells the user to reselect; network and `503` failures retain the
+  cart so a transient dependency failure does not discard their work.
+- Product creation refetches the first catalog page instead of locally
+  prepending the newest product to the API's oldest-first cursor ordering.
+- Added order lookup and status display. `pending` and `processing` orders poll
+  serially, scheduling the next request only after the current request settles.
+  Effect cleanup cancels future polling and ignores an in-flight result after
+  unmount/status change. Poll errors retain the last known order, display the
+  mapped failure, retry, and clear the failure after a successful recovery.
+  The UI explicitly explains that acceptance is synchronous but fulfillment
+  belongs to the separate asynchronous worker.
+- Intentional API handling covers validation (`400`), missing product/order
+  (`404`), duplicate SKU or insufficient stock (`409`), dependency failure
+  (`503`), and unreachable-network failure. The client does not claim runtime
+  schema validation of malformed successful responses.
+- Frontend tests cover catalog rendering, empty state, product creation, order
+  construction, first-page refetch ordering, opaque cursor forwarding, conflict
+  cart reconciliation, serialized polling with visible failure/recovery, API
+  conflict preservation, and an unreachable/dependency failure path.
+- Production build evidence: Vite emitted a 204.52 kB JavaScript bundle
+  (64.20 kB gzip) and 7.92 kB stylesheet (2.51 kB gzip). Workspace TypeScript,
+  ESLint, Prettier, frontend tests, and production builds passed.
+- Real local integration evidence: the browser created a five-unit product,
+  selected two units, confirmed the ₹698.00 order total, submitted the order,
+  and observed the separate worker move it to `ready_to_ship`. The catalog also
+  recovered through its visible retry control after the API was deliberately
+  unavailable during startup. The disposable order and product were deleted
+  afterward, and the API and worker logged graceful shutdown.
+- AWS actions/resources/credentials: none. Phase 1 remains local-only and in
+  progress because the remaining phase-wide Docker, secret-review, and workbook
+  exit criteria have not been claimed by this frontend increment.
 
 ## Phase review (complete at exit)
 

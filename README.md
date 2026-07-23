@@ -18,18 +18,33 @@ architecture, and evidence checklist.
 npm install
 copy .env.example .env
 docker compose up -d postgres
+npm run db:migrate
 npm run dev:api
 npm run dev:worker
+npm run dev:frontend
 ```
 
-Run the API and worker commands in separate terminals. Application tables and
-database access are introduced in the next increment; Step 1 verifies process
-startup and configuration only.
+Run the API, worker, and frontend commands in separate terminals, then open
+`http://127.0.0.1:5173`. The frontend development server proxies `/api` to the
+local API at `http://127.0.0.1:3000`, so no CORS configuration is required.
+
+`VITE_API_BASE_URL` is optional public configuration for a different API URL.
+Browser-visible variables must never contain database credentials, access keys,
+or server secrets.
+
+## Verification
+
+```text
+npm test
+npm run check
+npm run build
+```
 
 ## Workspace layout
 
 ```text
 apps/api       HTTP process
 apps/worker    background worker process
-packages/config shared environment validation
+apps/frontend  React browser application
+packages/config shared server environment validation
 ```
