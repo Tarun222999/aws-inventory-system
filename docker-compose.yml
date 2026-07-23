@@ -19,5 +19,81 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  migrate:
+    image: order-platform-backend:local
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: ["npm", "run", "db:migrate"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-order_platform}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-order_platform}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: order-platform-backend:local
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: ["npm", "run", "start", "--workspace", "@order-platform/api"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-order_platform}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-order_platform}
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  worker:
+    image: order-platform-backend:local
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: ["npm", "run", "start", "--workspace", "@order-platform/worker"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-order_platform}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-order_platform}
+      SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+      WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-1000}
+      WORKER_LEASE_TIMEOUT_MS: ${WORKER_LEASE_TIMEOUT_MS:-30000}
+      WORKER_RETRY_DELAY_MS: ${WORKER_RETRY_DELAY_MS:-1000}
+      WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-3}
+      WORKER_PROCESSING_DELAY_MS: ${WORKER_PROCESSING_DELAY_MS:-250}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  frontend:
+    image: order-platform-frontend:local
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "127.0.0.1:5173:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:

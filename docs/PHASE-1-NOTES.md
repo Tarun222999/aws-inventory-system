@@ -52,8 +52,8 @@ it surviving a restart.
       restart.
 - [x] Implement the React frontend for product/inventory management, order
       creation, and asynchronous status viewing.
-- [ ] Add unit/integration tests and Docker packaging.
-- [ ] Run a controlled local dependency failure and record the diagnosis.
+- [x] Add unit/integration tests and Docker packaging.
+- [x] Run a controlled local dependency failure and record the diagnosis.
 - [ ] Verify no secrets are committed.
 - [ ] Complete the Phase 1 workbook questions and demonstrations.
 
@@ -277,6 +277,49 @@ it surviving a restart.
 - AWS actions/resources/credentials: none. Phase 1 remains local-only and in
   progress because the remaining phase-wide Docker, secret-review, and workbook
   exit criteria have not been claimed by this frontend increment.
+
+### 2026-07-23 — Step 8 Docker packaging
+
+- Added a shared backend image used by the API, worker, and one-shot migration
+  services. API and worker remain separate containers/processes with independent
+  lifecycle and restart behavior while reusing the same repository code.
+- Added a multi-stage frontend image. Vite produces static assets and Nginx
+  serves them on port 8080 while proxying `/api` to the private API service.
+- Added configurable API binding. Local development defaults to
+  `127.0.0.1`; the API container explicitly binds `0.0.0.0` so it is reachable
+  on the private Compose network. Host-published ports remain restricted to
+  `127.0.0.1`.
+- PostgreSQL remains the only stateful service and retains its named volume.
+  The migration container waits for PostgreSQL health and must complete
+  successfully before API and worker startup. The frontend waits for API
+  readiness rather than mere process startup.
+- Container configuration supplies the database URL only to migration, API,
+  and worker. No database password or server secret enters the frontend build
+  or browser environment.
+- Packaged-stack evidence: frontend returned `200`, API `/health` returned
+  `ok`, and `/ready` returned `ready`.
+- Durability demonstration: stopped the worker container, accepted an order as
+  `pending`, restarted the worker, and observed the order reach
+  `ready_to_ship`. The exact disposable order and product were then deleted.
+- Lifecycle evidence: restarting API and worker sent `SIGTERM`; both logged
+  graceful-shutdown started/completed events and recovered successfully.
+- Final regression evidence: all six API, ten frontend, and three worker tests
+  passed. The first combined run began while the packaged worker was still in
+  `Stopping`, allowing it to claim one disposable test job; after verifying the
+  container was fully stopped, the isolated worker suite passed 3/3 and left no
+  disposable records. This reinforces that integration tests require exclusive
+  ownership of their job queue.
+- Controlled packaging failure: this Docker Desktop/Windows BuildKit failed
+  before Dockerfile evaluation with `changes out of order` while streaming the
+  repository context. The legacy local builder successfully sent the same
+  context, built both images, and started the full stack. The verified fallback
+  is documented in the README; this is a local builder limitation rather than
+  an application or image failure.
+- Backend containers currently use the existing non-watching `tsx` start
+  command. Producing smaller compiled-only runtime images is an explicit future
+  optimization; it does not change the Phase 1 process or state boundaries.
+- AWS actions/resources/credentials: none. All resources are local Docker
+  images, containers, networks, and the existing PostgreSQL named volume.
 
 ## Phase review (complete at exit)
 

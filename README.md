@@ -32,6 +32,36 @@ local API at `http://127.0.0.1:3000`, so no CORS configuration is required.
 Browser-visible variables must never contain database credentials, access keys,
 or server secrets.
 
+## Complete Docker stack
+
+Build and start PostgreSQL, the one-shot migration, API, worker, and frontend:
+
+```text
+docker compose up -d --build
+```
+
+Then open `http://127.0.0.1:5173`. The API remains available locally at
+`http://127.0.0.1:3000`; container-to-container database and API traffic uses
+the private Compose network.
+
+On the Docker Desktop/Windows version used for this project, BuildKit may fail
+while streaming the repository with `changes out of order`. This is a local
+builder defect that occurs before a Dockerfile is evaluated. The verified
+fallback is:
+
+```powershell
+$env:DOCKER_BUILDKIT="0"
+$env:COMPOSE_DOCKER_CLI_BUILD="0"
+docker compose build
+docker compose up -d --no-build
+```
+
+Stop the local stack without deleting PostgreSQL data with:
+
+```text
+docker compose down
+```
+
 ## Verification
 
 ```text

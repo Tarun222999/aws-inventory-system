@@ -14,6 +14,7 @@ const sharedEnvironmentSchema = z.object({
 });
 
 const apiEnvironmentSchema = sharedEnvironmentSchema.extend({
+  API_HOST: z.string().min(1).default("127.0.0.1"),
   API_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
 });
 

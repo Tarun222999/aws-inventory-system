@@ -100,9 +100,9 @@ const server = createServer((request, response) => {
   });
 });
 
-server.listen(config.API_PORT, "127.0.0.1", () => {
+server.listen(config.API_PORT, config.API_HOST, () => {
   logger.info("API listening", {
-    host: "127.0.0.1",
+    host: config.API_HOST,
     port: config.API_PORT,
     environment: config.NODE_ENV,
   });
