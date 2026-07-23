@@ -54,8 +54,8 @@ it surviving a restart.
       creation, and asynchronous status viewing.
 - [x] Add unit/integration tests and Docker packaging.
 - [x] Run a controlled local dependency failure and record the diagnosis.
-- [ ] Verify no secrets are committed.
-- [ ] Complete the Phase 1 workbook questions and demonstrations.
+- [x] Verify no secrets are committed.
+- [x] Complete the Phase 1 workbook questions and demonstrations.
 
 ## Decisions and evidence log
 
@@ -63,11 +63,11 @@ it surviving a restart.
 
 - Read the development plan, Phase 1 engineering workbook, cost-safety
   checklist, and Phase 0 notes.
-- Proposed ADR 0003 for the modular-monolith, transaction, asynchronous-work,
+- Recorded ADR 0003 for the modular-monolith, transaction, asynchronous-work,
   health/readiness, configuration, and secret boundaries.
 - AWS actions: none.
 - Local application resources started: none.
-- Current Phase 1 status: in progress.
+- Current Phase 1 status: complete as of 2026-07-23.
 - Cleanup status: `PARTIAL`, inherited solely from the documented Phase 0 root
   key follow-up; no Phase 1 cloud resources exist.
 
@@ -321,12 +321,73 @@ it surviving a restart.
 - AWS actions/resources/credentials: none. All resources are local Docker
   images, containers, networks, and the existing PostgreSQL named volume.
 
+### 2026-07-23 — Step 9 secret and credential audit
+
+- Scanned all tracked files and all 10 commits for AWS access-key formats,
+  private-key headers, common AWS secret assignments, GitHub token formats, and
+  Slack token formats. No matches were found.
+- Confirmed that no real `.env` file or credential-like filename is tracked and
+  that the repository ignore rule applies to `.env`. The tracked
+  `.env.example` contains documented local-only placeholders, not operational
+  cloud credentials.
+- Inspected the built frontend container assets for `DATABASE_URL`, the local
+  database password placeholder, AWS access-key formats, and AWS secret names;
+  the scan was clean.
+- Verified the backend application image does not contain `/app/.env`.
+  Runtime-only database configuration is injected into migration, API, and
+  worker containers; it is not copied into images or exposed to the browser.
+- Audit result: no committed application/AWS secret found. AWS
+  actions/resources/credentials changed: none.
+
+### 2026-07-23 — Step 10 workbook and Phase 1 close-out
+
+- The user identified PostgreSQL as the stateful source of truth and explained
+  that frontend, API, and worker can restart because accepted orders and jobs
+  do not depend on process memory.
+- The user explained the atomic order boundary: inventory decrement, pending
+  order, item records, and durable job commit together; insufficient stock for
+  any item rejects the whole transaction. Fulfillment can then run
+  asynchronously in the separate worker.
+- The modular-monolith decision was reviewed: it keeps related domain logic and
+  transactions understandable while avoiding premature network boundaries,
+  distributed failure modes, and deployment overhead. The separate worker
+  still provides independent asynchronous lifecycle behavior.
+- The user distinguished public configuration such as `API_PORT` from a
+  database credential that grants access, and distinguished process liveness
+  from database-dependent readiness.
+- Graceful-shutdown evidence and reasoning were reviewed: API stops accepting
+  requests and drains active requests; worker stops claiming jobs and drains
+  its current claim. Previously accepted work remains durable if either process
+  stops.
+- Status-code review: `200` for successful retrieval, `201` when a resource is
+  durably created, `409` for a current-state/business conflict, and `503` when
+  a required dependency prevents service. `202` was discussed as appropriate
+  when a request is merely accepted for later creation/processing; this API
+  returns `201` because the order resource and durable job already exist before
+  the response.
+- The user explained that unbounded product retrieval creates poor UX on older
+  or constrained devices. The review also connected the bounded limit to
+  database/API/network protection and the opaque cursor to stable keyset
+  pagination without coupling clients to its internal encoding.
+- Phase 1 workbook questions and demonstrations are complete with evidence in
+  this document, ADR 0003, tests, logs, HTTP results, database checks, the
+  container durability exercise, and the secret audit.
+
 ## Phase review (complete at exit)
 
 ```text
-Confidence (0-4):
-Architecture decision I can defend:
-Failure I investigated:
-Question to revisit:
-Cleanup status:
+Confidence (0-4): 3
+Architecture decision I can defend: Modular monolith plus a separately running
+  worker, with PostgreSQL as the stateful source of truth and durable job queue.
+Failure I investigated: PostgreSQL dependency loss, transaction rollback,
+  concurrent stock contention, worker retry/lease recovery, frontend dependency
+  loss, Docker BuildKit context failure, and test interference from a worker
+  that had not fully stopped.
+Question to revisit: Compiled-only minimal backend runtime images and production
+  secret delivery in the later deployment phases.
+Cleanup status: PARTIAL only because Phase 0 retains two inactive root access
+  keys for deletion review on 2026-07-28. Expected residual cost is USD 0.
+  Phase 1 created no AWS resources. Local Docker containers/images and the
+  PostgreSQL volume are intentionally retained for continued learning and have
+  no AWS cost.
 ```

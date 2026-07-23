@@ -95,21 +95,21 @@ Cleanup status:
 
 ### I should be able to answer
 
-- [ ] Which parts of our application are stateless and which are stateful?
-- [ ] Why are we starting with a modular monolith instead of microservices?
-- [ ] Which order actions must finish before responding to the client?
-- [ ] Which work can safely happen asynchronously?
-- [ ] What can happen when one step of a multi-step operation fails?
-- [ ] What is the difference between configuration and a secret?
-- [ ] How is process liveness different from application readiness?
-- [ ] When should an API return `200`, `201`, `202`, `409`, or `503`?
+- [x] Which parts of our application are stateless and which are stateful?
+- [x] Why are we starting with a modular monolith instead of microservices?
+- [x] Which order actions must finish before responding to the client?
+- [x] Which work can safely happen asynchronously?
+- [x] What can happen when one step of a multi-step operation fails?
+- [x] What is the difference between configuration and a secret?
+- [x] How is process liveness different from application readiness?
+- [x] When should an API return `200`, `201`, `202`, `409`, or `503`?
 
 ### I should be able to demonstrate
 
-- [ ] Draw the frontend, API, database, and worker boundaries.
-- [ ] Show a health endpoint and explain what it proves and does not prove.
-- [ ] Stop the application gracefully without losing accepted work.
-- [ ] Show that no secret is stored in source control.
+- [x] Draw the frontend, API, database, and worker boundaries.
+- [x] Show a health endpoint and explain what it proves and does not prove.
+- [x] Stop the application gracefully without losing accepted work.
+- [x] Show that no secret is stored in source control.
 
 ### Phase review
 
