@@ -181,32 +181,41 @@ Cleanup status:
 
 ### I should be able to answer
 
-- [ ] What actually makes a subnet public?
-- [ ] Why can a resource in a private subnet initiate internet access through
+- [x] What actually makes a subnet public?
+- [x] Why can a resource in a private subnet initiate internet access through
       NAT but not accept an unsolicited internet connection?
-- [ ] How does AWS select a route when multiple routes match?
-- [ ] What is the difference between an Internet Gateway and a NAT Gateway?
-- [ ] How are network ACLs different from security groups?
-- [ ] How does an application resolve an RDS hostname inside the VPC?
-- [ ] Which paths cross Availability Zones, and can they incur additional cost?
-- [ ] What breaks when one Availability Zone is unavailable?
-- [ ] When could a VPC endpoint replace NAT traffic, and is it cheaper here?
+- [x] How does AWS select a route when multiple routes match?
+- [x] What is the difference between an Internet Gateway and a NAT Gateway?
+- [x] How are network ACLs different from security groups?
+- [x] How does an application resolve an RDS hostname inside the VPC?
+- [x] Which paths cross Availability Zones, and can they incur additional cost?
+- [x] What breaks when one Availability Zone is unavailable?
+- [x] When could a VPC endpoint replace NAT traffic, and is it cheaper here?
 
 ### I should be able to demonstrate
 
-- [ ] Trace user-to-ALB, ALB-to-application, and application-to-RDS paths.
-- [ ] Remove or alter a route, predict the symptom, and diagnose the result.
-- [ ] Prove that a private resource is not directly reachable from the internet.
-- [ ] Delete a NAT Gateway and separately verify its Elastic IP release.
+- [x] Trace user-to-public-tier, public-to-private application, and future
+      application-to-database paths without creating Phase 4/5 resources.
+- [x] Remove or alter a route, predict the symptom, and diagnose the result.
+- [x] Prove that a private resource is not directly reachable from the internet.
+- [x] Delete a NAT Gateway and separately verify its Elastic IP release.
 
 ### Phase review
 
 ```text
-Confidence (0-4):
-Traffic path I can explain:
-Availability failure impact:
-NAT decision and cost:
-Cleanup status:
+Confidence (0-4): 3
+Traffic path I can explain: DNS resolves a destination; the source subnet's
+  associated route table selects the most-specific destination route; NACLs,
+  security groups, and the destination listener then determine reachability.
+Availability failure impact: Losing AZ A removes the demonstrated public tier
+  and its zonal NAT path; losing AZ B removes the demonstrated private tier.
+  Multi-AZ resources improve resilience but cross-AZ traffic can add cost.
+NAT decision and cost: A short-lived zonal NAT proved private outbound access
+  but added hourly, IPv4, processing, and possible cross-AZ charges. Gateway
+  endpoints can replace NAT for S3/DynamoDB paths; interface endpoints charge
+  per endpoint-AZ and were not economical for this short SSM exercise.
+Cleanup status: VERIFIED on 2026-07-31; all Phase 3 resources and charge-bearing
+  dependencies were deleted/released and verified absent in ap-south-1.
 ```
 
 ## Phase 4 — Containers, scaling, and deployment safety
