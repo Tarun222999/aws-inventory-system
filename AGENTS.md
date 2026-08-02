@@ -36,6 +36,30 @@ Treat cost safety as part of the task, not as an optional follow-up:
 Budget alerts are warnings and may be delayed. They are not spending caps and
 do not replace resource cleanup.
 
+## Retained foundation versus disposable runtime
+
+Use a middle-ground lifecycle for Phases 4 through 8. Do not delete and rebuild
+the entire architecture after every phase when a reusable resource has no
+direct hourly charge or only a small, understood storage charge.
+
+- Retain only documented, tagged foundation resources needed by a subsequent
+  phase, such as the learning VPC/subnets/routes/Internet Gateway, an empty ECS
+  cluster, task definitions, scoped IAM roles/security groups, and one
+  known-good ECR image.
+- Stop or delete meaningful hourly runtime after each session, including
+  Fargate tasks, load balancers, NAT Gateways, Elastic/public IPv4 addresses,
+  temporary ENIs/endpoints, and unneeded log ingestion.
+- A stopped RDS instance may be retained between closely spaced sessions only
+  when its storage/backup cost and automatic seven-day restart deadline are
+  recorded. Start it only for active work and stop it again afterward.
+- Low-usage state such as S3 objects, queues, or secrets may be retained only
+  when a later phase needs it and its residual cost, reason, and review/delete
+  date are recorded.
+- Re-verify every retained resource at session close. "No direct hourly
+  charge" does not mean "ignore during cleanup."
+- Review the manually created foundation at the Phase 8/9 boundary. Delete it
+  before Terraform recreation unless an explicit import exercise is chosen.
+
 ## Development curriculum
 
 Read `docs/DEVELOPMENT-PLAN.md` before beginning or continuing a project phase. Use
@@ -47,6 +71,6 @@ reviewing that phase. Use its questions and demonstrations for the phase review;
 do not treat resource creation alone as proof that the concept was learned.
 
 This project uses a manual-first learning approach: understand and exercise AWS
-resources manually, clean them up and verify the cleanup, then reproduce the
-understood architecture with Terraform in the later Infrastructure-as-Code
-phase.
+resources manually, retain only the justified reusable foundation, remove and
+verify expensive runtime after every session, then reproduce the understood
+architecture with Terraform in the later Infrastructure-as-Code phase.

@@ -10,6 +10,7 @@ import { checkDatabase, createDatabase } from "@order-platform/database";
 import { createLogger } from "@order-platform/logger";
 
 import { sendJson } from "./http/json.js";
+import { handleOperationalRoute } from "./modules/operations/operational.routes.js";
 import { handleOrderRoute } from "./modules/orders/order.routes.js";
 import { handleProductRoute } from "./modules/products/product.routes.js";
 
@@ -32,8 +33,14 @@ async function handleRequest(
   const requestId = request.headers["x-request-id"] ?? randomUUID();
   response.setHeader("x-request-id", requestId);
 
-  if (request.method === "GET" && request.url === "/health") {
-    sendJson(response, 200, { status: "ok" });
+  if (
+    await handleOperationalRoute(request, response, {
+      appVersion: config.APP_VERSION,
+      healthMode: config.PHASE4_HEALTH_MODE,
+      instanceId: process.env.HOSTNAME ?? "local",
+      maximumSlowRequestMs: config.PHASE4_MAX_SLOW_REQUEST_MS,
+    })
+  ) {
     return;
   }
 
@@ -105,6 +112,8 @@ server.listen(config.API_PORT, config.API_HOST, () => {
     host: config.API_HOST,
     port: config.API_PORT,
     environment: config.NODE_ENV,
+    appVersion: config.APP_VERSION,
+    healthMode: config.PHASE4_HEALTH_MODE,
   });
 });
 

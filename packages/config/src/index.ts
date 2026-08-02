@@ -16,6 +16,17 @@ const sharedEnvironmentSchema = z.object({
 const apiEnvironmentSchema = sharedEnvironmentSchema.extend({
   API_HOST: z.string().min(1).default("127.0.0.1"),
   API_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+  APP_VERSION: z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/)
+    .default("development"),
+  PHASE4_HEALTH_MODE: z.enum(["healthy", "unhealthy"]).default("healthy"),
+  PHASE4_MAX_SLOW_REQUEST_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(30_000)
+    .default(20_000),
 });
 
 const workerEnvironmentSchema = sharedEnvironmentSchema.extend({

@@ -36,6 +36,34 @@ Use `docs/ENGINEERING-CONCEPTS.md` as the phase-completion workbook. Its review
 questions and demonstrations determine whether the engineering concepts for a
 phase have actually been understood.
 
+### Resource lifecycle from Phase 4 onward
+
+Use a retained-foundation/disposable-runtime model:
+
+```text
+Retained foundation (documented and re-verified)
+├── Learning VPC, subnets, route tables, and Internet Gateway
+├── Empty ECS cluster and task definitions
+├── Scoped IAM roles and reusable security groups
+├── One known-good ECR image/repository
+└── Later low-usage state required by the next phase
+
+Disposable runtime (removed after each session)
+├── Running ECS/Fargate tasks and temporary services
+├── Application Load Balancer, listeners, and target groups
+├── NAT Gateway, Elastic IP, and public IPv4 dependencies
+├── Temporary endpoints/ENIs and test artifacts
+└── Unneeded logs or other continuously billable resources
+```
+
+This avoids repetitive foundation creation without weakening cost control.
+Every retained resource must have a reason, expected residual cost, and
+review/delete date in `docs/COST-SAFETY-CHECKLIST.md`. RDS may be stopped and
+retained between closely spaced sessions only with its storage cost and AWS's
+automatic seven-day restart deadline recorded. The manual foundation is
+reviewed at the Phase 8/9 boundary and normally deleted before Terraform
+recreates it.
+
 ## Confirmed technology stack and project choices
 
 The following choices were confirmed during Phase 0:
@@ -228,11 +256,15 @@ This phase is local; no AWS workload resources are created.
 
 ### Cleanup gate
 
-- Scale the ECS service to zero, then delete it when the exercise ends.
+- Scale the ECS service to zero, verify all tasks stopped, and delete temporary
+  services after the exercise.
 - Stop standalone tasks.
 - Delete the ALB, listeners, and target groups.
 - Delete NAT Gateway/public IPv4 resources created for the phase.
-- Retain only explicitly recorded ECR images.
+- Retain the tagged learning VPC/subnets/routes/IGW, empty ECS cluster, task
+  definitions, scoped roles/security groups, and one known-good ECR image only
+  when recorded in the ledger with cost and review date.
+- Delete unhealthy/disposable images, temporary ENIs, and unneeded logs.
 
 ## Phase 5 — Managed database, object storage, and secrets
 
@@ -263,10 +295,14 @@ This phase is local; no AWS workload resources are created.
 ### Cleanup gate
 
 - Decide deliberately whether data is disposable or requires a snapshot.
-- Stop or delete RDS; record retained storage/snapshot cost.
+- Stop RDS after each session. If retained for Phases 6–8, record storage and
+  backup cost plus a review date before its automatic seven-day restart; delete
+  it when continuity is no longer worth the residual cost.
 - Delete disposable S3 objects and incomplete multipart uploads.
-- Schedule deletion of lesson-only secrets when no longer needed.
+- Retain only S3 data and secrets needed by a later phase, with lifecycle,
+  residual cost, and review/delete date recorded.
 - Remove NAT Gateway and load balancer resources if recreated.
+- Retain and re-verify the documented reusable network/ECS foundation.
 
 ## Phase 6 — Reliable asynchronous order processing
 
@@ -295,8 +331,10 @@ This phase is local; no AWS workload resources are created.
 
 - Stop workers and set ECS desired count to zero where applicable.
 - Confirm queues contain no important messages before deletion.
-- Delete lesson queues and event-source mappings when appropriate.
+- Retain queues/event mappings only when Phase 7 needs them; otherwise delete
+  them. Record any retained resource and its expected residual cost.
 - Verify that no retrying workload remains active.
+- Delete ALB/NAT/public-IP runtime while retaining the documented foundation.
 
 ## Phase 7 — Events, schedules, and notifications
 
@@ -328,7 +366,8 @@ This phase is local; no AWS workload resources are created.
 
 - Disable/delete EventBridge schedules before ending the exercise.
 - Delete test rules, targets, topics, subscriptions, and queues.
-- Remove provisioned resources while retaining only intentional logs/reports.
+- Remove hourly runtime while retaining only the documented foundation and
+  intentional low-usage data/logs/reports needed for Phase 8.
 
 ## Phase 8 — Edge delivery, security, and operations
 
@@ -365,6 +404,9 @@ This phase is local; no AWS workload resources are created.
 - Review CloudFront, ACM, logs, snapshots, S3, and public IPv4 usage.
 - Review Cloudflare DNS records created for the project and record any
   intentionally retained certificate or distribution.
+- At the Phase 8/9 boundary, review the entire manually created foundation.
+  Normally delete and verify it before Terraform recreation; retain/import only
+  if an explicit Terraform import exercise is approved.
 
 ## Phase 9 — Infrastructure as Code with Terraform
 

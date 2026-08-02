@@ -45,6 +45,37 @@ Suggested initial budget alerts:
 The budget amount will be chosen after we inspect the account's credits and
 existing usage.
 
+## Retained-foundation policy
+
+From Phase 4 through Phase 8, use a middle-ground lifecycle instead of deleting
+and rebuilding every resource after every phase.
+
+### Eligible to retain when the next phase needs them
+
+- Dedicated learning VPC, subnets, route tables, and Internet Gateway
+- Empty ECS cluster and task definitions
+- Least-privilege task/execution roles and reusable security groups
+- One known-good versioned ECR image and its repository
+- Low-usage S3/queue/secret state genuinely needed by the next phase
+- A stopped RDS instance between closely spaced sessions, only with storage and
+  backup cost plus its automatic seven-day restart deadline recorded
+
+### Remove after every active session
+
+- Running ECS/Fargate tasks and temporary services
+- Application/Network Load Balancers, listeners, and target groups
+- NAT Gateways and their Elastic IP addresses
+- Unneeded public IPv4 addresses, endpoints, ENIs, and test artifacts
+- Unneeded log ingestion, temporary images, failed revisions, and disposable
+  state
+
+Every retained resource must be tagged, listed in the resource ledger and
+retained-resource record, assigned an expected residual cost and review/delete
+date, and re-verified during close-out. Retention changes overall account
+cleanup to `PARTIAL` even when the active phase runtime cleanup is `VERIFIED`.
+At the Phase 8/9 boundary, delete the manually created foundation before
+Terraform recreation unless an explicit import exercise is approved.
+
 ## Resource ledger
 
 Update this table whenever a resource is created, even if it is expected to
@@ -73,6 +104,12 @@ exist for only a few minutes.
 | Phase 3 NAT Gateway and Elastic IP                      | Zonal NAT `nat-084188a4c2090c5df`, its EIP `eipalloc-07761ce6446df7372`, and ENI `eni-092309b67c218bfc3`; prior mistaken regional NAT and its service-managed EIPs | Mumbai `ap-south-1`; Private B route returned to local-only | No residual NAT/EIP charge after verified deletion/release; delayed NAT/data/cross-AZ usage may still appear | Verified zero active NATs, zero EIPs, zero NAT ENIs, and zero NAT-target routes at 18:53 IST on 2026-07-31 | DELETED — VERIFIED |
 | Phase 3 temporary EC2 probes and root volumes           | Public probe `i-0d3e72bcd91720016` with encrypted root `vol-0b6dbf03b74485f69`; private probe `i-011a920420e6bc428` with encrypted root `vol-0c825fe303f46b730` | Public A in `ap-south-1a`; Private B in `ap-south-1b` | No residual charge after verified termination/deletion; delayed usage may still appear | Both terminated; volumes, snapshots, ENIs, automatic public IPv4, and active SSM inventory verified absent | DELETED — VERIFIED |
 | Phase 3 IAM role and instance profile                   | `order-platform-phase3-probe-role`                              | Global IAM service                            | No residual charge                                                                  | Managed policy detached by console deletion; role and matching instance profile both return `NoSuchEntity` | DELETED — VERIFIED |
+| Phase 4 reusable VPC foundation                        | `order-platform-phase4-vpc` (`vpc-01f2e981ee69febad`); two public plus two private subnets planned; IGW/routes/SGs planned | `ap-south-1`; two AZs planned | USD 0 expected direct idle service cost; traffic can incur transfer charges | Retain through Phase 8 only if tagged/ledgered; re-verify no NAT/EIP/endpoints/runtime ENIs; review 2026-08-31 and normally delete at Phase 8/9 boundary | RUNNING — REQUIRED |
+| Phase 4 ECR repository and images                      | `order-platform-phase4-api`; one known-good versioned image plus disposable test images | `ap-south-1` | USD 0.10/GB-month; actual retained image size/cost to be recorded after push; approved maximum 1.5 GB / USD 0.15-month | Retain one known-good image/repository; delete unhealthy/test images; review 2026-08-31 and normally delete at Phase 8/9 boundary | PLANNED — NOT CREATED |
+| Phase 4 ECS task execution and task roles              | `order-platform-phase4-execution-role`; `order-platform-phase4-task-role` | Global IAM service | USD 0 direct service cost; retained permissions remain a security concern | Retain only scoped reusable roles through Phase 8; re-review least privilege each phase and on 2026-08-31; delete at Phase 8/9 boundary | PLANNED — NOT CREATED |
+| Phase 4 CloudWatch log group                           | `/aws/order-platform/phase4/api`                               | `ap-south-1`                                  | Ingestion USD 0.67/GB and storage USD 0.03/GB-month; persists at desired count zero | Use one-day retention; delete after evidence and verify Phase 4 prefix empty | PLANNED — NOT CREATED |
+| Phase 4 ECS cluster, task definitions, service, and Fargate tasks | `order-platform-phase4-cluster`; `order-platform-phase4-api`; desired count 1, briefly 2 | `ap-south-1` | Empty ECS cluster/required task definitions USD 0 direct service cost; Fargate CPU/memory and task public IPv4 billed while tasks run | Stop all tasks; delete temporary service; verify task IPs/ENIs absent; retain empty cluster/known-good task definition; review 2026-08-31 and delete at Phase 8/9 boundary | PLANNED — NOT CREATED |
+| Phase 4 Application Load Balancer                      | `order-platform-phase4-alb`; HTTP listener; `order-platform-phase4-api-tg` | `ap-south-1`; two AZs | ALB USD 0.0239/hour or partial hour plus LCU usage and two public IPv4 addresses; continues at desired count zero | Delete ALB/listener and verify ALB ENIs/public IPv4 absent; delete target group and verify absent | PLANNED — NOT CREATED |
 
 Allowed status values:
 

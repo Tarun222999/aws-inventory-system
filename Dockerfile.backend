@@ -1,5 +1,11 @@
 FROM node:22.22.2-alpine
 
+ARG APP_VERSION=development
+ARG PHASE4_HEALTH_MODE=healthy
+
+ENV APP_VERSION=$APP_VERSION \
+    PHASE4_HEALTH_MODE=$PHASE4_HEALTH_MODE
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./
