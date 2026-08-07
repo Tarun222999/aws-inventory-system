@@ -227,11 +227,188 @@ baseline with desired count 2             USD 0.077835/hour
 - Read-only verification confirmed state `available`, CIDR `10.40.0.0/16`,
   default tenancy, and exact `Name`, `Project`, `Environment`, `Owner`, and
   `AutoCleanup` tags with no mismatch.
-- DNS resolution is enabled and DNS hostnames are disabled. The next manual
-  action is to enable DNS hostnames while leaving resolution enabled.
-- The VPC currently has zero subnets, attached Internet Gateways, active NAT
-  Gateways, VPC endpoints, and network interfaces. No unintended billable
-  dependency was created.
+- Read-only verification confirmed that both DNS resolution and DNS hostnames
+  are enabled.
+- Four tagged `/24` subnets were verified `available` with the intended CIDRs
+  and two-AZ placement: public A `subnet-022206a94faffa567` in `ap-south-1a`,
+  public B `subnet-03d602d500bb7f64a` in `ap-south-1b`, private A
+  `subnet-0959a93361d698088` in `ap-south-1a`, and private B
+  `subnet-0462c591e5d829fdd` in `ap-south-1b`.
+- Automatic public IPv4 assignment is disabled on all four subnets. Read-only
+  verification also found no active NAT Gateway or VPC endpoint, so no
+  unintended billable egress dependency was created.
+- Internet Gateway `igw-03dcd901c5395fbf7` was verified attached and
+  `available` with the exact required tags. A follow-up safety check found no
+  active NAT Gateway or unattached Elastic IP.
+- Public route table `rtb-069097f89f8bd5070` was verified with both public
+  subnet associations and active `0.0.0.0/0` routing to the Phase 4 Internet
+  Gateway. Private route table `rtb-0f14920dd8fddf372` was verified with both
+  private subnet associations and only the active VPC-local route.
+- The VPC main route table remains associated only as main and contains only
+  the VPC-local route. Both custom route tables have the exact required tags,
+  and the follow-up check again found no active NAT Gateway.
+- After the tagging follow-up, main route table `rtb-0cf4de2df4c9d7be0`
+  was verified with the exact required tags, its main association intact, and
+  only the active VPC-local route.
+- ALB security group `sg-037d90e37d307a692` was verified with public IPv4
+  inbound TCP/80 and outbound TCP/3000 only to the task security group. Task
+  security group `sg-09ee205b5eb8a0727` was verified with inbound TCP/3000
+  only from the ALB security group and outbound TCP/443 to IPv4 internet
+  endpoints. Both groups have the exact required tags.
+- IAM verification on 2026-08-04 confirmed both Phase 4 roles trust only
+  `ecs-tasks.amazonaws.com`, have the exact required tags, and have no inline
+  policies. The execution role has only `AmazonECSTaskExecutionRolePolicy`;
+  the task role has no attached permission policy. An initially attached
+  `AmazonEC2ContainerServiceRole` policy on the task role was removed before
+  this verification.
+- ECS cluster `order-platform-phase4-cluster` was verified `ACTIVE` in Mumbai
+  with the exact required tags and Container Insights disabled. It has the
+  standard `FARGATE` and `FARGATE_SPOT` capacity providers available but no
+  default strategy, services, running or pending tasks, registered EC2
+  container instances, or current runtime cost.
+- On 2026-08-04 the user gave immediate explicit approval for the Phase 4
+  CloudWatch log group only: `/aws/order-platform/phase4/api`, Standard class,
+  default service encryption, one-day retention, and a 0.10 GB ingestion cap.
+  At the recorded Mumbai rates this caps ingestion near USD 0.067; empty-group
+  cost is effectively USD 0. Stop tasks to stop ingestion, delete the group
+  after evidence, and verify the Phase 4 prefix is empty.
+- Post-creation verification confirmed the log group uses Standard class,
+  one-day retention, default service encryption, and the exact required tags.
+  It has 0 stored bytes and no log streams, metric filters, or subscription
+  filters; current direct cost is effectively USD 0 before task log ingestion.
+- On 2026-08-04 the user gave immediate explicit approval for the private ECR
+  repository and exactly two versioned image pushes: one healthy and one
+  controlled-unhealthy image. Tags are immutable, encryption is AES-256, and
+  combined storage is capped at 1.5 GB (USD 0.15/month at USD 0.10/GB-month).
+  Same-Region ECR-to-Fargate transfer is USD 0. Delete the unhealthy image
+  after rollback evidence and retain only the measured known-good image.
+- Post-creation verification confirmed private repository
+  `order-platform-phase4-api` uses immutable tags, AES-256 encryption, exact
+  required resource tags, and basic rather than enhanced registry scanning.
+  It contains zero images, so current ECR storage cost is effectively USD 0.
+- The first approved push created exactly one Linux/amd64 image tagged
+  `phase4-healthy-v1`, with ECR digest
+  `sha256:f14819c56db20d6cd8c500011abd30f111b067aaa56505fd20e360a91086442a`.
+  The tested local image resolves to the same registry digest. ECR reports a
+  compressed size of 190,003,692 bytes (about 0.190 GB), yielding an estimated
+  retained cost of about USD 0.019/month at USD 0.10/GB-month. The second
+  approved unhealthy-image push remains unused.
+- The planned first task-definition revision pins that healthy digest and uses
+  Fargate `awsvpc`, Linux/x86_64, 0.25 vCPU, 0.5 GB memory, the included 20 GB
+  ephemeral storage, API port 3000, the verified execution and task roles,
+  the one-day Phase 4 log group, and a 15-second container stop timeout.
+  Registration has USD 0 direct cost and does not authorize launching a task.
+- Post-registration verification found revision 1 otherwise matched the plan
+  but stored `NODE_ENV=NODE_ENV` instead of `NODE_ENV=production`. No service,
+  running task, or pending task was created, so no Fargate/public-IPv4 runtime
+  cost began. Because task-definition revisions are immutable, register and
+  verify corrected revision 2 before any runtime approval or launch.
+- Revision 2 was verified `ACTIVE` with `NODE_ENV=production` and every other
+  planned field intact: pinned healthy digest, Fargate/awsvpc, Linux/x86_64,
+  0.25 vCPU, 0.5 GB, default included storage, roles, port 3000, placeholder
+  database URL, CloudWatch logging, 15-second stop timeout, and exact tags.
+  The cluster still has zero services and tasks. Incorrect revision 1 remains
+  active only until it is deliberately deregistered before runtime.
+- Follow-up verification confirmed revision 1 is `INACTIVE` and corrected
+  revision 2 remains `ACTIVE`; no task or service was launched during cleanup.
+- On 2026-08-04 the user explicitly approved runtime group 2: one IP target
+  group, one internet-facing ALB/listener, one ECS service at desired count 1
+  and briefly 2, task public IPv4 addresses for NAT-free egress, a maximum
+  three-hour ALB lifetime, and a USD 0.75 pre-tax operating cap. This does not
+  approve NAT, endpoints, EC2, RDS, or Phase 5+ resources. At the time of
+  approval, read-only checks confirmed zero tasks, services, load balancers,
+  target groups, and active NAT Gateways in the Phase 4 VPC.
+- Target group `order-platform-phase4-api-tg` was verified in the Phase 4 VPC
+  with target type IP, IPv4 HTTP/3000, HTTP/1, `/health`, traffic port,
+  10-second interval, 5-second timeout, 2/2 thresholds, matcher 200, exact
+  tags, and zero registered targets. Slow start is 0, stickiness is disabled,
+  and cross-zone behavior inherits the ALB. The default deregistration delay
+  is 300 seconds and must be reduced to 30 before ALB creation.
+- Follow-up verification confirmed the deregistration delay is 30 seconds,
+  other target-group attributes remain unchanged, the target set is empty,
+  and no ALB exists yet.
+- ALB `order-platform-phase4-alb` was created at 2026-08-04 22:48 IST, starting
+  the approved billing clock and setting a mandatory 2026-08-05 01:48 IST
+  cleanup deadline. Initial verification confirmed internet-facing IPv4,
+  application type, the correct VPC and public A/B subnets, only the ALB
+  security group, exact tags, HTTP/80 forwarding to the Phase 4 target group,
+  cross-zone enabled, access logs disabled, and deletion protection disabled.
+  Follow-up verification confirmed the ALB is `active` and its authoritative
+  subnet mappings include both `ap-south-1a` public A and `ap-south-1b` public
+  B. The EC2 inventory exposed one requester-managed ALB ENI/public association
+  in public B at that instant; because ALB frontend capacity is AWS-managed,
+  the authoritative two-AZ mapping—not a transient EC2 ENI count—is the
+  availability configuration. Cleanup must still wait for every exposed ALB
+  ENI/public IPv4 dependency to disappear.
+- ECS service `order-platform-phase4-api` launched its first Fargate task at
+  2026-08-04 23:20 IST. Verification found service state `ACTIVE`, desired /
+  running / pending counts `1 / 1 / 0`, a completed deployment, zero failed
+  tasks, minimum healthy 100%, maximum 200%, and circuit breaker plus rollback
+  enabled. The service uses task definition revision 2, both planned public
+  subnets, only the task security group, assigned public IPs, ECS-managed tags,
+  service-to-task tag propagation, and no ECS Exec.
+- Fargate placed the first task in public B with 0.25 vCPU and 0.5 GB memory.
+  Its requester-managed ENI has the expected private IP, a temporary public
+  IPv4 association, and only the task security group. ECS registered the task
+  private IP on port 3000; the target became `healthy`.
+- Requests through the ALB to `/health` and `/version` returned status `ok` and
+  version `phase4-healthy-v1`. CloudWatch contains the expected task log stream
+  and the startup record confirms `production`, host `0.0.0.0`, port 3000, and
+  healthy mode. Required service tags propagated to the task alongside the
+  ECS-managed service and cluster tags.
+- The service health-check grace period is 0 seconds rather than the planned
+  30 seconds. The fast-starting healthy baseline succeeded, so no emergency
+  change was required; review this distinction before the controlled unhealthy
+  deployment.
+- The user manually stopped the only running task while desired count remained
+  1. The ALB temporarily returned HTTP 503 while the target group had no healthy
+  destination, demonstrating the predicted single-replica availability gap.
+  ECS replaced the task without changing the deployment revision; desired /
+  running / pending returned to `1 / 1 / 0`, with zero deployment failures.
+- The replacement became healthy in public A at private IP `10.40.0.184`, while
+  `/health` identified its container hostname as
+  `ip-10-40-0-184.ap-south-1.compute.internal`. The original task stopped with
+  `UserInitiated`, container exit code 0, and its former ENI returned not found.
+  A distinct CloudWatch stream was created for the replacement task.
+- The user then changed desired count from 1 to 2 without forcing a new
+  deployment. ECS retained the healthy task in public A and started the second
+  replica in public B at private IP `10.40.1.235`. Service counts converged to
+  `2 / 2 / 0`, and the target group verified one healthy target in each AZ.
+  Two-task Fargate plus task-public-IPv4 runtime is about USD 0.035935/hour,
+  before the already-running ALB/LCU/public-IPv4 charges.
+- A manual 20-request `/version` sample through the ALB returned 10 responses
+  from the public-A task hostname and 10 from the public-B task hostname. This
+  is direct evidence that both registered private-IP targets served traffic;
+  the exact even split is an observed small sample, not an ALB distribution
+  guarantee.
+- With desired count still 2, the user started a 180-request probe and manually
+  stopped the public-A task. Every request succeeded: 36 were served by the old
+  public-A task, 127 by the surviving public-B task, and 17 by the new public-A
+  replacement. There were zero probe errors and no observed ALB 503 response.
+- AWS verification returned desired / running / pending `2 / 2 / 0`, zero
+  deployment failures, and healthy targets `10.40.1.235:3000` in public B and
+  `10.40.0.38:3000` in public A. No ENI remained for the stopped task's old
+  private IP `10.40.0.184`, verifying release of that task's network/public-IP
+  dependency. This contrasts self-healing with one replica against maintained
+  request availability with two replicas across the two selected AZs.
+- The user scaled back from 2 to 1. AWS exposed the removed public-B target as
+  `draining` with `Target.DeregistrationInProgress`, then removed it after the
+  configured 30-second deregistration delay; the service converged to `1 / 1 /
+  0` with only the public-A target healthy.
+- For the explicit drain test, a 10,000 ms request was started through the ALB
+  and the only task was manually stopped while it was in flight. The request
+  completed successfully on `ip-10-40-0-38.ap-south-1.compute.internal` in
+  10,198 ms. CloudWatch then logged `Graceful shutdown started` with `SIGTERM`
+  and `Graceful shutdown completed`; their near-identical timestamps show the
+  request had already finished during load-balancer/ECS draining before the
+  container received SIGTERM. The task exited 0 with no container reason, its
+  old ENI/private-public IP dependency was absent, and the service replacement
+  became healthy in public B at private IP `10.40.1.7`.
+- This demonstrates two cooperating safeguards without overstating the result:
+  deregistration draining protected the observed in-flight request, while the
+  application's SIGTERM handler performed a clean bounded shutdown. The AWS
+  run did not force the handler itself to wait on an active request because
+  draining completed that request before SIGTERM arrived.
 - Direct idle service cost is USD 0. Ledger status is `RUNNING — REQUIRED`
   while the approved retained foundation is built and re-verified.
 - At desired count zero, Fargate task and task-public-IPv4 charges stop only
@@ -291,6 +468,54 @@ Approval for group 1 does not approve group 2 or any NAT Gateway.
   build passed. The first broad API test command also selected database
   integration suites and failed only because no `DATABASE_URL` was supplied;
   the new no-database operational tests themselves passed in that run.
+- Local healthy image `order-platform-phase4-api:phase4-healthy-v1` was built
+  for Linux/amd64 and inspected with `APP_VERSION=phase4-healthy-v1`, healthy
+  mode, non-root `node` user, and an approximately 470 MB local image size.
+  The local size is not the compressed ECR billed size.
+- A localhost-only container test verified `/health` returned `status=ok` and
+  version `phase4-healthy-v1`; `/version` returned the same version plus the
+  container hostname. Startup logs recorded production mode, `0.0.0.0:3000`,
+  the exact version, and healthy mode. A syntactically valid placeholder
+  database URL satisfied configuration only; no managed database was created
+  or contacted, and database-backed endpoints were not tested.
+- A manual `docker stop --time 15` sent SIGTERM. Logs showed graceful shutdown
+  start and completion within milliseconds; the container exited 0, was not
+  OOM-killed, and reported no runtime error. This is the local baseline for the
+  later ALB draining and ECS task-replacement exercise.
+- Local image `order-platform-phase4-api:phase4-unhealthy-v1` was built for
+  Linux/amd64 with non-root user `node`, embedded version
+  `phase4-unhealthy-v1`, and health mode `unhealthy`. Local `/version` returned
+  HTTP 200 with that version while `/health` deliberately returned HTTP 503;
+  the container remained running, distinguishing process state from
+  application/load-balancer health.
+- The tested unhealthy image was pushed under the repository's immutable tag
+  at digest
+  `sha256:746f4d169ce73284b2252328bc20a825d91cd3720c7098daea1338cd711be809`
+  and compressed size 190,006,714 bytes. The healthy digest remained unchanged.
+  Both images total about 0.380 GB, estimated near USD 0.038/month prorated;
+  delete the unhealthy image after rollback evidence.
+- Task-definition revision 3 was registered `ACTIVE` and pinned to the exact
+  unhealthy digest. Read-only comparison against healthy revision 2 verified
+  identical substantive task/container settings and exact required tags. The
+  only non-image serialization difference was omission of empty
+  `environmentFiles`, `ulimits`, and log `secretOptions` arrays, which has no
+  runtime effect. Registration has USD 0 direct cost and did not update the
+  service.
+- The service was updated from healthy revision 2 to unhealthy revision 3 with
+  desired count 1, minimum healthy 100%, maximum 200%, circuit breaker and
+  rollback enabled, and a fixed failure threshold of 3. Healthy revision 2
+  remained the customer-serving target throughout.
+- Each revision 3 container started normally and logged version
+  `phase4-unhealthy-v1` with health mode `unhealthy`. ALB health checks received
+  HTTP 503; captured target state showed `unhealthy` with
+  `Target.ResponseCodeMismatch`. ECS drained/stopped the attempts cleanly rather
+  than treating them as image-pull, IAM, network, or process-crash failures.
+- At failure count 3, revision 3 moved to `FAILED` and the circuit breaker
+  automatically promoted revision 2 back to `PRIMARY`. Final verification
+  returned service task revision 2, desired / running / pending `1 / 1 / 0`,
+  rollout `COMPLETED`, one healthy public-B target, no remaining unhealthy
+  target, and ALB `/version` response `phase4-healthy-v1`. This is the required
+  rollback and immutable-version evidence.
 - AWS actions/resources created: none. Local preparation has no AWS cost.
 
 ## Planned question → prediction → evidence loop
@@ -369,16 +594,45 @@ Approval for group 1 does not approve group 2 or any NAT Gateway.
 ## Phase review (complete at exit)
 
 ```text
-Confidence (0-4):
-Failed deployment diagnosis:
-Rollback evidence:
-Task replacement/draining evidence:
-Version/digest evidence:
-Desired-count/AZ reasoning:
-CPU/memory sizing reasoning:
-Idle-cost estimate:
-Phase 4 cleanup status:
-Expected Phase 4 residual cost:
-Delayed usage caveat:
-Overall inactive-root-key follow-up:
+Confidence (0-4): 2. The user completed a five-question review on 2026-08-06
+  and can explain the concepts with help. Reuse is required to strengthen
+  unaided procedural recall, especially task-definition creation, rolling
+  percentages, rollback versus roll-forward, and horizontal versus vertical
+  scaling.
+Failed deployment diagnosis: Revision 3 ran normally but returned HTTP 503 from
+  /health. ALB reported Target.ResponseCodeMismatch, proving application health
+  failure rather than image pull, IAM, networking, or process-start failure.
+Rollback evidence: Three failed revision 3 targets tripped the fixed circuit
+  breaker threshold. Revision 3 became FAILED; revision 2 returned to
+  PRIMARY/COMPLETED; ALB /version returned phase4-healthy-v1.
+Task replacement/draining evidence: Desired count 1 produced a temporary 503
+  during replacement. Desired count 2 produced 180/180 successful requests
+  while a task was replaced across two AZs. A separate 10-second request
+  completed during target draining; the task then logged SIGTERM and exited 0.
+Version/digest evidence: Healthy and unhealthy immutable tags resolved to
+  distinct digests; revisions 2 and 3 pinned those digests. Only healthy
+  phase4-healthy-v1 remains in ECR at its original digest.
+Desired-count/AZ reasoning: One replica self-heals but has a replacement/AZ
+  availability gap. Two replicas placed one per selected AZ and preserved
+  service during one task replacement, at roughly twice task/public-IP cost.
+CPU/memory sizing reasoning: 0.25 vCPU/0.5 GB is the least-cost valid Fargate
+  size for this low-traffic stateless teaching surface. Horizontal scaling adds
+  replicas for concurrency/availability; vertical sizing helps when one task's
+  CPU or memory is saturated. No production load test was performed, so this is
+  a starting size rather than a production capacity claim.
+Idle-cost estimate: Desired count zero stops task compute/public-IPv4 charges
+  only after ENIs disappear. ALB/LCU/two public IPv4 charges continue until ALB
+  deletion; logs and ECR persist independently.
+Phase 4 cleanup status: VERIFIED for disposable runtime on 2026-08-05. Zero
+  active services/tasks, ALB/listeners/target groups, VPC ENIs/public IPv4,
+  NAT/EIP/endpoints, Phase 4 log groups, or unhealthy images remain.
+Expected Phase 4 residual cost: About USD 0.019/month prorated for the retained
+  190,003,692-byte healthy ECR image; USD 0 direct idle service cost for the
+  retained tagged VPC/ECS/IAM/security foundation.
+Delayed usage caveat: Fargate, task/ALB public IPv4, ALB/LCU, ECR, CloudWatch
+  Logs, request, transfer, and tax usage incurred during the lesson may appear
+  after cleanup. Billing dashboards are not deletion evidence.
+Overall inactive-root-key follow-up: The separate review of two inactive root
+  access keys was due 2026-07-28 and is overdue. Phase 4 did not inspect,
+  modify, or delete those credentials; separate authorization remains required.
 ```

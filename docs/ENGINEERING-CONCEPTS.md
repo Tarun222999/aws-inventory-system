@@ -237,32 +237,49 @@ Cleanup status: VERIFIED on 2026-07-31; all Phase 3 resources and charge-bearing
 
 ### I should be able to answer
 
-- [ ] What is the difference between an ECS task and an ECS service?
-- [ ] Why does ECS need separate execution and task roles?
-- [ ] Why is an image digest more deterministic than the `latest` tag?
-- [ ] How does the ALB decide whether a task should receive traffic?
-- [ ] What happens to in-flight requests when ECS replaces a task?
-- [ ] How do minimum and maximum healthy percentages affect deployment?
-- [ ] When should a deployment roll back instead of roll forward?
-- [ ] How do desired count and AZ placement affect availability?
-- [ ] Which supporting resources still cost money when desired count is zero?
+- [x] What is the difference between an ECS task and an ECS service?
+- [x] Why does ECS need separate execution and task roles?
+- [x] Why is an image digest more deterministic than the `latest` tag?
+- [x] How does the ALB decide whether a task should receive traffic?
+- [x] What happens to in-flight requests when ECS replaces a task?
+- [x] How do minimum and maximum healthy percentages affect deployment?
+- [x] When should a deployment roll back instead of roll forward?
+- [x] How do desired count and AZ placement affect availability?
+- [x] Which supporting resources still cost money when desired count is zero?
 
 ### I should be able to demonstrate
 
-- [ ] Deploy a versioned image and identify the exact running version.
-- [ ] Deploy an unhealthy image and follow the failure through ECS and ALB.
-- [ ] Replace a task and observe request draining and health transitions.
-- [ ] Restore a previously known-good application version.
-- [ ] Scale to zero and separately remove ALB/NAT hourly charges.
+- [x] Deploy a versioned image and identify the exact running version.
+- [x] Deploy an unhealthy image and follow the failure through ECS and ALB.
+- [x] Replace a task and observe request draining and health transitions.
+- [x] Restore a previously known-good application version.
+- [x] Scale to zero and separately remove ALB/NAT hourly charges.
 
 ### Phase review
 
 ```text
-Confidence (0-4):
-Failed deployment diagnosis:
-Rollback evidence:
-Idle-cost estimate:
-Cleanup status:
+Confidence (0-4): 2. Formal five-question review completed on 2026-08-06;
+  concepts can be explained with guidance and should be reinforced through
+  reuse in later phases.
+Failed deployment diagnosis: Revision 3's container started normally with the
+  correct immutable unhealthy digest, but `/health` deliberately returned 503.
+  ALB reported `Target.ResponseCodeMismatch`; ECS drained three failed targets.
+  This was an application-health failure, not image pull, IAM, networking, or
+  process startup failure.
+Rollback evidence: The circuit breaker tripped at the fixed threshold of three.
+  Revision 3 moved to FAILED, revision 2 returned to PRIMARY/COMPLETED, desired /
+  running / pending returned to 1 / 1 / 0, the target was healthy, and ALB
+  `/version` returned `phase4-healthy-v1`.
+Idle-cost estimate: Desired count zero removes Fargate/task-public-IPv4 cost only
+  after task ENIs disappear. ALB/LCU and its two public IPv4 addresses continue
+  until ALB deletion; logs and ECR persist independently. After verified runtime
+  cleanup, only the 190,003,692-byte healthy ECR image costs about USD 0.019/month
+  prorated; the retained VPC/ECS/IAM/security foundation has USD 0 direct idle
+  service cost.
+Cleanup status: VERIFIED for disposable Phase 4 runtime on 2026-08-05. The
+  approved reusable foundation and one known-good image remain documented, so
+  overall account cleanup is PARTIAL. The separate inactive-root-key review is
+  overdue and was not inspected or modified in Phase 4.
 ```
 
 ## Phase 5 — Database, storage, and secrets
@@ -570,7 +587,7 @@ the AWS Console open:
 | 1 — Application boundaries | 3                | 2026-07-23     | ADR 0003, 19 passing tests, browser flow, durable-worker/restart exercises, graceful shutdown, secret audit | Yes — compiled-only runtime images and production secret delivery |
 | 2 — EC2/diagnosis          |                4 | 2026-07-27     | SSM/no SSH, EC2/EBS lifecycle, IAM denial/repair, CloudWatch correlation, timeout/refused/503 diagnosis      | Yes — production private networking and cleaner container log parsing |
 | 3 — Networking             |                  |                |                                                                                                              |                                   |
-| 4 — ECS/deployments        |                  |                |                                                                                                              |                                   |
+| 4 — ECS/deployments        |                2 | 2026-08-06     | Digest-pinned Fargate/ALB deployment, 1-versus-2 task replacement, draining, unhealthy rollout/circuit-breaker rollback, verified runtime cleanup | Yes — task-definition recall, rolling percentages, rollback vs roll-forward, horizontal vs vertical scaling |
 | 5 — Data/storage/secrets   |                  |                |                                                                                                              |                                   |
 | 6 — Async reliability      |                  |                |                                                                                                              |                                   |
 | 7 — Events/notifications   |                  |                |                                                                                                              |                                   |

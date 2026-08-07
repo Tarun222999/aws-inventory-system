@@ -2,10 +2,10 @@
 
 ## Status
 
-Proposed on 2026-07-31. Validate through the Phase 4 manual build, failure
-exercise, rollback, draining observation, cost review, runtime cleanup, and
-retained-foundation re-verification. Lifecycle amended on 2026-08-02 following
-the user-approved retained-foundation/disposable-runtime policy.
+Accepted on 2026-08-05 after the Phase 4 manual build, failure exercise,
+rollback, draining observation, cost review, runtime cleanup, and
+retained-foundation re-verification. Lifecycle was amended on 2026-08-02
+following the user-approved retained-foundation/disposable-runtime policy.
 
 ## Context
 
@@ -125,6 +125,29 @@ foundation remains even when Phase 4 runtime cleanup is `VERIFIED`.
   structured shutdown logs test this boundary.
 - Loss of execution-role permissions prevents image pull or log delivery;
   application task-role permissions are intentionally unrelated.
+
+## Validation outcome
+
+- The healthy image was deployed by exact digest and identified through the
+  ALB as `phase4-healthy-v1`. The retained compressed image size is 190,003,692
+  bytes, estimated near USD 0.019/month prorated.
+- At desired count 1, manually stopping the only task produced the predicted
+  temporary ALB 503 until ECS made a replacement healthy. At desired count 2,
+  a 180-request replacement probe returned 180 successes while ECS preserved
+  one healthy task in each AZ before and after replacement.
+- A 10-second request completed during target draining. CloudWatch then showed
+  SIGTERM start/completion and exit code 0. This validates ALB/ECS draining and
+  clean application termination without claiming the application handler had
+  to wait for that request after SIGTERM.
+- Unhealthy revision 3 started successfully but returned 503 to ALB health
+  checks. Three `Target.ResponseCodeMismatch` failures tripped the circuit
+  breaker; automatic rollback restored revision 2 to `COMPLETED`, and the ALB
+  again returned the known-good version.
+- Disposable runtime cleanup was verified before the three-hour deadline:
+  zero active ECS services/tasks, ALBs/listeners/target groups, VPC ENIs/public
+  IPv4 addresses, NATs/EIPs/endpoints, Phase 4 log groups, or unhealthy images.
+  Revision 3 is inactive. The tagged reusable foundation and only healthy image
+  remain, with the review/delete obligations stated above.
 
 ## Conditions that would make us reconsider
 
