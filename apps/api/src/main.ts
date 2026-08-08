@@ -21,6 +21,7 @@ const {
   pool,
   close: closeDatabase,
 } = createDatabase(config.DATABASE_URL, {
+  maxConnections: config.DATABASE_POOL_MAX,
   onPoolError: (error) => logger.error("Database pool error", error),
 });
 

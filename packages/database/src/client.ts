@@ -4,13 +4,14 @@ import { Pool } from "pg";
 import * as schema from "./schema.js";
 
 type DatabaseOptions = {
+  maxConnections: number;
   onPoolError: (error: Error) => void;
 };
 
 export function createDatabase(databaseUrl: string, options: DatabaseOptions) {
   const pool = new Pool({
     connectionString: databaseUrl,
-    max: 10,
+    max: options.maxConnections,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
     query_timeout: 2_000,

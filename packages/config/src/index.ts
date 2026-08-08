@@ -5,6 +5,7 @@ const sharedEnvironmentSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   DATABASE_URL: z.string().url().startsWith("postgresql://"),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(20).default(5),
   SHUTDOWN_TIMEOUT_MS: z.coerce
     .number()
     .int()

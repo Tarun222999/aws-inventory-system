@@ -16,6 +16,7 @@ if (!databaseUrl)
   throw new Error("DATABASE_URL is required for integration tests");
 
 const connection = createDatabase(databaseUrl, {
+  maxConnections: 5,
   onPoolError: (error) => console.error(error),
 });
 
