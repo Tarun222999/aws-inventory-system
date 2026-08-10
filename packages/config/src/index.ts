@@ -1,3 +1,5 @@
+export { resolveDatabaseEnvironment } from "./runtime-database.js";
+
 import { z } from "zod";
 
 const sharedEnvironmentSchema = z.object({
@@ -6,6 +8,7 @@ const sharedEnvironmentSchema = z.object({
     .default("development"),
   DATABASE_URL: z.string().url().startsWith("postgresql://"),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(20).default(5),
+  DATABASE_SSL_CA_PATH: z.string().min(1).optional(),
   SHUTDOWN_TIMEOUT_MS: z.coerce
     .number()
     .int()

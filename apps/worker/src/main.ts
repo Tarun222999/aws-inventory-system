@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { loadWorkerConfig } from "@order-platform/config";
+import {
+  loadWorkerConfig,
+  resolveDatabaseEnvironment,
+} from "@order-platform/config";
 import { createDatabase } from "@order-platform/database";
 import { createLogger } from "@order-platform/logger";
 
@@ -11,12 +14,17 @@ import {
   recordJobFailure,
 } from "./job.repository.js";
 
-const config = loadWorkerConfig();
+const config = loadWorkerConfig(await resolveDatabaseEnvironment());
 const logger = createLogger("worker");
 const workerId = `worker-${randomUUID()}`;
 const { database, close: closeDatabase } = createDatabase(config.DATABASE_URL, {
+  applicationName:
+    `order-platform-worker:${process.env.HOSTNAME ?? "local"}`.slice(0, 63),
   maxConnections: config.DATABASE_POOL_MAX,
   onPoolError: (error) => logger.error("Database pool error", error),
+  ...(config.DATABASE_SSL_CA_PATH
+    ? { sslCertificateAuthorityPath: config.DATABASE_SSL_CA_PATH }
+    : {}),
 });
 const shutdownController = new AbortController();
 

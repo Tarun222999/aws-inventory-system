@@ -11,12 +11,19 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/worker/package.json apps/worker/package.json
-COPY apps/frontend/package.json apps/frontend/package.json
 COPY packages/config/package.json packages/config/package.json
 COPY packages/database/package.json packages/database/package.json
 COPY packages/logger/package.json packages/logger/package.json
 
-RUN npm ci
+RUN npm ci \
+    --workspace @order-platform/api \
+    --workspace @order-platform/worker \
+    --workspace @order-platform/config \
+    --workspace @order-platform/database \
+    --workspace @order-platform/logger \
+    --include-workspace-root
+
+ADD --chmod=0444 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/certs/global-bundle.pem
 
 COPY tsconfig.base.json ./
 COPY apps/api apps/api

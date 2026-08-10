@@ -221,6 +221,45 @@ after a workload is separately approved and created.
   Observe `pg_stat_activity` while task count changes or is safely simulated
   before satisfying the Phase 5 connection-scaling exit criterion.
 
+### Workload-secret and temporary-task preparation — 2026-08-08
+
+- The application now supports either the existing local `DATABASE_URL` or
+  one startup retrieval identified by `DB_SECRET_ID`. The AWS SDK uses the ECS
+  task-role credential provider; it requests only `GetSecretValue`, constructs
+  the encoded PostgreSQL URL in process memory, and never logs or persists the
+  secret. Malformed JSON, missing fields, an invalid port/name, or a non-
+  PostgreSQL engine fails closed.
+- The connection pool accepts an explicit CA bundle and uses Node TLS with
+  certificate verification enabled. The backend image includes the official
+  global RDS CA bundle; the AWS task will set its path explicitly while local
+  Docker remains compatible with non-TLS local PostgreSQL.
+- A bounded `phase5:lab` command is prepared to apply existing migrations,
+  report TLS protocol/cipher, prove a non-TLS connection is denied, safely
+  simulate one/two/four application-task pools via `pg_stat_activity`, run two
+  concurrent final-item purchases, capture a parameterized SKU query plan,
+  delete its test rows, close all pools, and exit. It sanitizes failures to
+  error name/code and does not print endpoints, identities, or credentials.
+- Six config/secret tests, all affected workspace type checks, formatting,
+  whitespace checks, and the full repository linter pass. Docker Desktop was
+  started and the narrowed backend image built successfully with the SDK, CA
+  bundle, and lab command present. Its local uncompressed size is about 311 MB;
+  the production-only dependency audit reports zero vulnerabilities. A first
+  build exposed that the backend image unnecessarily installed the frontend
+  workspace and inherited its advisories; the Dockerfile now installs only the
+  API, worker, shared backend packages, and required root runtime tooling.
+- The planned runtime group is one temporary ECR image, a no-cost task-
+  definition revision, an exact task-role secret permission, a one-day log
+  group, and at most two sequential ten-minute Fargate/public-IPv4 tasks. No
+  service, ALB, NAT, endpoint, or inbound task rule is included. Its incremental
+  pre-tax cap is USD 0.10; the combined RDS-plus-runtime session cap is USD
+  0.25. Creation still requires a final immediate explicit approval.
+- Immediate pre-creation refresh verified the expected Identity Center caller
+  and Mumbai, budget actual USD 0.144 of USD 5, one private/available
+  `db.t4g.micro`, one retained ECR image, and zero ECS services/tasks, ALBs,
+  target groups, NATs, EIPs, endpoints, public IPv4 associations, or Phase 5
+  lab log groups. The retained task role still has zero inline or attached
+  policies. No account identifier or secret value was recorded.
+
 ### DB subnet group
 
 - The user manually created `order-platform-phase5-db-subnet-group` in Mumbai.
@@ -293,6 +332,74 @@ after a workload is separately approved and created.
 - Phase 5 remains in progress. RDS, Secrets Manager, S3, application changes,
   workbook demonstrations, restore evidence, and final phase cleanup are not
   yet complete.
+
+## Session pause and verified cleanup — 2026-08-08
+
+- The user chose to pause deployment and return to concept-first learning.
+  The proposed Phase 5 image push, task-definition revision, task-role secret
+  permission, lab log group, and two Fargate tasks were not approved or
+  created. The locally built image and uncommitted source changes remain only
+  on the workstation and have no AWS charge.
+- RDS was stopped and AWS eventually reported `stopped`. Instance-hour billing
+  is now USD 0. AWS reports automatic restart at 2026-08-15 17:42 IST; review,
+  delete, or deliberately start-stop it no later than 2026-08-14.
+- Retained RDS residuals are 20 GiB gp3 at about USD 2.62/month, the active
+  managed secret at about USD 0.40/month plus tiny API-call usage, and backup
+  storage above any applicable allocation at USD 0.095/GB-month. A conservative
+  full additional 20 GB of charged backup would be USD 1.90/month. The prior
+  healthy ECR image remains about USD 0.019/month. Thus known base residual is
+  about USD 3.039/month, or conservatively up to about USD 4.939/month if the
+  full 20 GB backup amount were separately charged, before tax. Billing is
+  delayed and the USD 5 budget is a warning rather than a cap.
+- The accidentally created `RDSOSMetrics` group had zero stored bytes and was
+  deleted after all DB monitoring intervals were verified zero. Its IAM role
+  had only the standard Enhanced Monitoring managed policy; that policy was
+  detached, the role deleted, and exact absence verified.
+- Final inventory verified zero ECS services/running/pending tasks, ALBs,
+  target groups, NAT Gateways, EIPs, VPC endpoints, public IPv4 associations,
+  Phase 4/5 or Enhanced Monitoring log groups, Phase 5 S3 buckets, manual RDS
+  snapshots, and task-role policies. Exactly one retained ECR image remains.
+  One expected private `RDSNetworkInterface` remains attached to the stopped
+  private database and has no public address.
+- Phase 5 active-runtime cleanup is `VERIFIED`. Overall cleanup is `PARTIAL`
+  because the stopped RDS storage/backups/secret and documented Phase 4/5
+  foundation are intentionally retained, and because the separate overdue
+  inactive-root-key review remains untouched.
+
+## Resume preflight and proposed workload-role lab — 2026-08-10
+
+- The expected Identity Center caller and Mumbai (`ap-south-1`) were verified
+  without recording the account identifier. The budget showed USD 0.364 actual
+  against the USD 5 warning threshold at its latest update; billing is delayed
+  and this is not a cap or cleanup evidence.
+- RDS remains stopped, private, Single-AZ, and scheduled for automatic restart
+  on 2026-08-15 at 17:42 IST. The ECS cluster has zero services and zero
+  running/pending tasks. The task role still has zero policies. There are zero
+  ALBs, target groups, NAT Gateways, EIPs, VPC endpoints, public IPv4
+  associations, or relevant log groups. One private RDS ENI and the one retained
+  Phase 4 ECR image remain as expected.
+- Official pricing was refreshed through AWS documentation and the AWS Price
+  List API: RDS `db.t4g.micro` USD 0.021/running hour; Fargate Linux/x86 USD
+  0.04256/vCPU-hour plus USD 0.004655/GB-hour; public IPv4 USD 0.005/hour; ECR
+  USD 0.10/GB-month; CloudWatch Logs Standard ingestion USD 0.67/GB and storage
+  USD 0.03/GB-month; Secrets Manager USD 0.40/secret-month plus USD 0.05 per
+  10,000 calls.
+- The proposed 60-minute group starts the retained RDS instance, pushes one
+  Phase 5 image, creates a one-day log group and task-definition revision, and
+  runs at most two sequential ten-minute 0.25-vCPU/0.5-GB tasks. The first task
+  proves `AccessDenied` with the permissionless task role; the second uses only
+  exact-secret `GetSecretValue` and runs the TLS, connection-count, concurrency,
+  and query-plan lab. No service, ALB, NAT, endpoint, or S3 resource is included.
+- Expected time-boxed compute/public-IPv4 cost is about USD 0.027 before tiny
+  secret calls, ECR storage, and bounded logs. The conservative incremental cap
+  is USD 0.10 before tax. The user explicitly approved this complete group and
+  its 60-minute RDS running limit on 2026-08-10; no resource had been started or
+  created at the approval-record checkpoint.
+- Cleanup must stop tasks, remove their ENIs/public IPv4, stop and verify RDS,
+  delete the lab log group, remove the task-role policy, reconcile ECR to one
+  separately confirmed healthy retained image, and repeat the zero-runtime
+  inventory. The stopped-database review date must be reset before AWS's next
+  automatic seven-day restart.
 
 ## Exact stop/delete/retention and verification procedures
 

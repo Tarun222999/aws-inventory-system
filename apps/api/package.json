@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "phase5:lab": "tsx src/phase5-lab.ts",
     "start": "tsx --env-file-if-exists=../../.env src/main.ts",
     "test": "tsx --test src/modules/**/*.test.ts",
     "typecheck": "tsc --noEmit"
@@ -14,9 +15,7 @@
     "@order-platform/config": "0.1.0",
     "@order-platform/database": "0.1.0",
     "@order-platform/logger": "0.1.0",
+    "drizzle-orm": "0.45.2",
     "zod": "3.25.76"
-  },
-  "devDependencies": {
-    "drizzle-orm": "0.45.2"
   }
 }

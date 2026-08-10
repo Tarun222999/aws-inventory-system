@@ -19,6 +19,7 @@ if (!databaseUrl)
   throw new Error("DATABASE_URL is required for integration tests");
 
 const connection = createDatabase(databaseUrl, {
+  applicationName: "order-platform-order-test",
   maxConnections: 5,
   onPoolError: (error) => console.error(error),
 });

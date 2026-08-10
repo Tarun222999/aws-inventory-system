@@ -5,7 +5,10 @@ import {
   type ServerResponse,
 } from "node:http";
 
-import { loadApiConfig } from "@order-platform/config";
+import {
+  loadApiConfig,
+  resolveDatabaseEnvironment,
+} from "@order-platform/config";
 import { checkDatabase, createDatabase } from "@order-platform/database";
 import { createLogger } from "@order-platform/logger";
 
@@ -14,15 +17,20 @@ import { handleOperationalRoute } from "./modules/operations/operational.routes.
 import { handleOrderRoute } from "./modules/orders/order.routes.js";
 import { handleProductRoute } from "./modules/products/product.routes.js";
 
-const config = loadApiConfig();
+const config = loadApiConfig(await resolveDatabaseEnvironment());
 const logger = createLogger("api");
 const {
   database,
   pool,
   close: closeDatabase,
 } = createDatabase(config.DATABASE_URL, {
+  applicationName:
+    `order-platform-api:${process.env.HOSTNAME ?? "local"}`.slice(0, 63),
   maxConnections: config.DATABASE_POOL_MAX,
   onPoolError: (error) => logger.error("Database pool error", error),
+  ...(config.DATABASE_SSL_CA_PATH
+    ? { sslCertificateAuthorityPath: config.DATABASE_SSL_CA_PATH }
+    : {}),
 });
 
 let shuttingDown = false;
