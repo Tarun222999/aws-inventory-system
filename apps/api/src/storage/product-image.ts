@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -146,13 +147,36 @@ export type ProductImageDownloadGrant = {
   expiresInSeconds: number;
 };
 
+export type StoredProductImage = {
+  contentType: string;
+  checksumSha256: string;
+  byteSize: number;
+};
+
+export class ProductImageObjectNotFoundError extends Error {}
+
 export type ProductImageStorage = {
   createUploadGrant(
     request: ProductImageUploadRequest,
   ): Promise<ProductImageUploadGrant>;
   createDownloadGrant(objectKey: string): Promise<ProductImageDownloadGrant>;
+  inspectObject(objectKey: string): Promise<StoredProductImage>;
   deleteObject(objectKey: string): Promise<void>;
 };
+
+function isNotFoundError(error: unknown) {
+  if (typeof error !== "object" || error === null) return false;
+  if ("name" in error && error.name === "NotFound") return true;
+  if (!("$metadata" in error)) return false;
+
+  const metadata = error.$metadata;
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    "httpStatusCode" in metadata &&
+    metadata.httpStatusCode === 404
+  );
+}
 
 export function createProductImageStorage(
   config: ProductImageStorageConfig,
@@ -234,6 +258,41 @@ export function createProductImageStorage(
         url,
         expiresInSeconds: downloadExpiresInSeconds,
       };
+    },
+
+    async inspectObject(objectKey) {
+      assertProductImageObjectKey(objectKey);
+
+      try {
+        const result = await client.send(
+          new HeadObjectCommand({
+            Bucket: bucketName,
+            Key: objectKey,
+            ChecksumMode: "ENABLED",
+          }),
+        );
+
+        if (
+          !result.ContentType ||
+          !result.ChecksumSHA256 ||
+          result.ContentLength === undefined
+        ) {
+          throw new Error("Stored product image metadata is incomplete");
+        }
+
+        return {
+          contentType: result.ContentType,
+          checksumSha256: result.ChecksumSHA256,
+          byteSize: result.ContentLength,
+        };
+      } catch (error) {
+        if (isNotFoundError(error)) {
+          throw new ProductImageObjectNotFoundError(
+            "Product image upload is not available in S3",
+          );
+        }
+        throw error;
+      }
     },
 
     async deleteObject(objectKey) {

@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
 
-import { S3Client } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 import {
   createProductImageStorage,
+  ProductImageObjectNotFoundError,
   type ProductImageContentType,
   type ProductImageStorageConfig,
 } from "./product-image.js";
@@ -36,7 +37,7 @@ function createTestStorage(overrides: Partial<ProductImageStorageConfig> = {}) {
   );
 }
 
-test("creates a narrow presigned product-image upload grant locally", async () => {
+void test("creates a narrow presigned product-image upload grant locally", async () => {
   const storage = createTestStorage();
   const grant = await storage.createUploadGrant({
     productId,
@@ -67,7 +68,7 @@ test("creates a narrow presigned product-image upload grant locally", async () =
   assert.match(signedHeaders, /x-amz-checksum-sha256/);
 });
 
-test("creates a private GET grant for a canonical stored key", async () => {
+void test("creates a private GET grant for a canonical stored key", async () => {
   const storage = createTestStorage({ downloadExpiresInSeconds: 120 });
   const grant = await storage.createDownloadGrant(validObjectKey);
 
@@ -78,7 +79,56 @@ test("creates a private GET grant for a canonical stored key", async () => {
   assert.ok(url.searchParams.get("X-Amz-Signature"));
 });
 
-test("rejects unsafe expiry configuration", () => {
+void test("verifies uploaded object metadata without downloading image bytes", async () => {
+  const client = {
+    send: (command: unknown) => {
+      assert.ok(command instanceof HeadObjectCommand);
+      return Promise.resolve({
+        ContentType: "image/png",
+        ChecksumSHA256: validChecksum,
+        ContentLength: 16,
+      });
+    },
+  } as unknown as S3Client;
+  const storage = createProductImageStorage(
+    {
+      bucketName: "order-platform-test-images",
+      region: "ap-south-1",
+    },
+    { client },
+  );
+
+  assert.deepEqual(await storage.inspectObject(validObjectKey), {
+    contentType: "image/png",
+    checksumSha256: validChecksum,
+    byteSize: 16,
+  });
+});
+
+void test("reports an upload that is not yet present in S3", async () => {
+  const client = {
+    send: () =>
+      Promise.reject(
+        Object.assign(new Error("Not found"), {
+          $metadata: { httpStatusCode: 404 },
+        }),
+      ),
+  } as unknown as S3Client;
+  const storage = createProductImageStorage(
+    {
+      bucketName: "order-platform-test-images",
+      region: "ap-south-1",
+    },
+    { client },
+  );
+
+  await assert.rejects(
+    storage.inspectObject(validObjectKey),
+    ProductImageObjectNotFoundError,
+  );
+});
+
+void test("rejects unsafe expiry configuration", () => {
   assert.throws(
     () => createTestStorage({ uploadExpiresInSeconds: 29 }),
     /upload URL expiry must be an integer from 30 to 300 seconds/,
@@ -93,7 +143,7 @@ test("rejects unsafe expiry configuration", () => {
   );
 });
 
-test("rejects missing bucket and Region configuration", () => {
+void test("rejects missing bucket and Region configuration", () => {
   assert.throws(
     () => createTestStorage({ bucketName: " " }),
     /bucket name is required/,
@@ -104,7 +154,7 @@ test("rejects missing bucket and Region configuration", () => {
   );
 });
 
-test("rejects malformed product IDs, content types, and checksums", async () => {
+void test("rejects malformed product IDs, content types, and checksums", async () => {
   const storage = createTestStorage();
 
   await assert.rejects(
@@ -135,7 +185,7 @@ test("rejects malformed product IDs, content types, and checksums", async () => 
   );
 });
 
-test("rejects object keys outside the canonical product-image namespace", async () => {
+void test("rejects object keys outside the canonical product-image namespace", async () => {
   const storage = createTestStorage();
 
   await assert.rejects(

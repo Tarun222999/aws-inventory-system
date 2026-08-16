@@ -55,6 +55,30 @@ export const products = pgTable(
   ],
 );
 
+export const productImages = pgTable(
+  "product_images",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    objectKey: text("object_key").notNull(),
+    contentType: varchar("content_type", { length: 32 }).notNull(),
+    checksumSha256: varchar("checksum_sha256", { length: 44 }).notNull(),
+    byteSize: integer("byte_size").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("product_images_product_id_unique").on(table.productId),
+    uniqueIndex("product_images_object_key_unique").on(table.objectKey),
+    check(
+      "product_images_content_type_supported",
+      sql`${table.contentType} in ('image/jpeg', 'image/png', 'image/webp')`,
+    ),
+    check("product_images_byte_size_positive", sql`${table.byteSize} > 0`),
+  ],
+);
+
 export const inventory = pgTable(
   "inventory",
   {

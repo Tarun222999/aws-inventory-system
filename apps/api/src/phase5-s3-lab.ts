@@ -89,15 +89,17 @@ async function main() {
 
     const unsignedUpload = await fetch(removeSignature(uploadGrant.url), {
       method: "PUT",
-      headers: uploadGrant.requiredHeaders,
+      headers: {
+        "content-type": uploadGrant.requiredHeaders["content-type"],
+      },
       body: demoPng,
     });
 
-    assert.equal(unsignedUpload.status, 403);
     console.log("phase5.s3.unsigned-upload", {
-      denied: true,
+      denied: unsignedUpload.status === 403,
       status: unsignedUpload.status,
     });
+    assert.equal(unsignedUpload.status, 403);
 
     stage = "signed-upload";
 
@@ -135,11 +137,11 @@ async function main() {
 
     const unsignedDownload = await fetch(removeSignature(downloadGrant.url));
 
-    assert.equal(unsignedDownload.status, 403);
     console.log("phase5.s3.unsigned-download", {
-      denied: true,
+      denied: unsignedDownload.status === 403,
       status: unsignedDownload.status,
     });
+    assert.equal(unsignedDownload.status, 403);
 
     stage = "signed-download";
 
@@ -161,11 +163,17 @@ async function main() {
     proofCompleted = true;
   } finally {
     if (objectKey) {
+      const stageBeforeCleanup = stage;
+
       stage = "cleanup";
       await storage.deleteObject(objectKey);
       console.log("phase5.s3.cleanup", {
         deleteRequested: true,
       });
+
+      if (!proofCompleted) {
+        stage = stageBeforeCleanup;
+      }
     }
   }
 

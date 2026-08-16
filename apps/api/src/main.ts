@@ -15,7 +15,9 @@ import { createLogger } from "@order-platform/logger";
 import { sendJson } from "./http/json.js";
 import { handleOperationalRoute } from "./modules/operations/operational.routes.js";
 import { handleOrderRoute } from "./modules/orders/order.routes.js";
+import { handleProductImageRoute } from "./modules/product-images/product-image.routes.js";
 import { handleProductRoute } from "./modules/products/product.routes.js";
+import { createProductImageStorage } from "./storage/product-image.js";
 
 const config = loadApiConfig(await resolveDatabaseEnvironment());
 const logger = createLogger("api");
@@ -32,6 +34,14 @@ const {
     ? { sslCertificateAuthorityPath: config.DATABASE_SSL_CA_PATH }
     : {}),
 });
+const productImageStorage = config.PRODUCT_IMAGE_BUCKET
+  ? createProductImageStorage({
+      bucketName: config.PRODUCT_IMAGE_BUCKET,
+      region: config.AWS_REGION,
+      uploadExpiresInSeconds: config.PRODUCT_IMAGE_UPLOAD_EXPIRES_SECONDS,
+      downloadExpiresInSeconds: config.PRODUCT_IMAGE_DOWNLOAD_EXPIRES_SECONDS,
+    })
+  : undefined;
 
 let shuttingDown = false;
 
@@ -69,6 +79,17 @@ async function handleRequest(
         reason: "database_unavailable",
       });
     }
+    return;
+  }
+
+  if (
+    await handleProductImageRoute(request, response, {
+      database,
+      logger,
+      requestId,
+      ...(productImageStorage ? { storage: productImageStorage } : {}),
+    })
+  ) {
     return;
   }
 

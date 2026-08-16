@@ -15,6 +15,8 @@ COPY packages/config/package.json packages/config/package.json
 COPY packages/database/package.json packages/database/package.json
 COPY packages/logger/package.json packages/logger/package.json
 
+RUN apk upgrade --no-cache libcrypto3 libssl3
+
 RUN npm ci \
     --workspace @order-platform/api \
     --workspace @order-platform/worker \

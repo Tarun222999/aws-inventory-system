@@ -34,6 +34,25 @@ const apiEnvironmentSchema = sharedEnvironmentSchema.extend({
     .min(1_000)
     .max(30_000)
     .default(20_000),
+  AWS_REGION: z.string().min(1).default("ap-south-1"),
+  PRODUCT_IMAGE_BUCKET: z
+    .string()
+    .min(3)
+    .max(63)
+    .regex(/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/)
+    .optional(),
+  PRODUCT_IMAGE_UPLOAD_EXPIRES_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(30)
+    .max(300)
+    .default(60),
+  PRODUCT_IMAGE_DOWNLOAD_EXPIRES_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(30)
+    .max(300)
+    .default(60),
 });
 
 const workerEnvironmentSchema = sharedEnvironmentSchema.extend({
