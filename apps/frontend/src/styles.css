@@ -213,6 +213,28 @@ main {
   background: rgba(255, 253, 247, 0.9);
   box-shadow: 0 8px 28px rgba(44, 54, 46, 0.045);
 }
+.product-image,
+.product-image-placeholder {
+  width: calc(100% + 2.7rem);
+  height: 170px;
+  margin: -1.35rem -1.35rem 1.15rem;
+  border-radius: 17px 17px 0 0;
+}
+.product-image {
+  display: block;
+  object-fit: cover;
+  background: #e4e8dc;
+}
+.product-image-placeholder {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e4e8dc, #f0efe8);
+  color: #737c75;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 .product-card h2 {
   font:
     700 1.35rem Manrope,
@@ -363,6 +385,16 @@ textarea {
   align-items: center;
   justify-content: flex-end;
   padding-top: 0.8rem;
+}
+.pending-image h2 {
+  margin-top: 0;
+  font:
+    700 1.35rem Manrope,
+    sans-serif;
+}
+.pending-image p {
+  color: var(--muted);
+  line-height: 1.55;
 }
 .notice {
   margin: -1rem 0 1.3rem;

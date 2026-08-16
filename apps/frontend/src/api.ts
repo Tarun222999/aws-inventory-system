@@ -1,4 +1,11 @@
-import type { ApiErrorBody, Order, Product } from "./types";
+import type {
+  ApiErrorBody,
+  Order,
+  Product,
+  ProductImage,
+  ProductImageUploadConfirmation,
+  ProductImageUploadGrant,
+} from "./types";
 
 const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim();
 const API_BASE_URL = (configuredBase || "/api").replace(/\/$/, "");
@@ -74,4 +81,61 @@ export function createOrder(
 
 export function getOrder(id: string) {
   return request<{ data: Order }>(`/orders/${encodeURIComponent(id)}`);
+}
+
+export function requestProductImageUploadGrant(
+  productId: string,
+  input: Pick<ProductImageUploadConfirmation, "contentType" | "checksumSha256">,
+) {
+  return request<{ data: ProductImageUploadGrant }>(
+    `/products/${encodeURIComponent(productId)}/image/upload-grant`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export async function uploadProductImageBytes(
+  grant: ProductImageUploadGrant,
+  file: File,
+) {
+  let response: Response;
+  try {
+    response = await fetch(grant.url, {
+      method: "PUT",
+      headers: grant.requiredHeaders,
+      body: file,
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "image_upload_unavailable",
+      "The image could not be uploaded to object storage.",
+    );
+  }
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      "image_upload_failed",
+      `Image upload failed with status ${response.status}`,
+    );
+  }
+}
+
+export function confirmProductImageUpload(
+  productId: string,
+  input: ProductImageUploadConfirmation,
+) {
+  return request<{ data: ProductImage }>(
+    `/products/${encodeURIComponent(productId)}/image/confirm`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function requestProductImageDownloadGrant(productId: string) {
+  return request<{
+    data: {
+      image: ProductImage;
+      grant: { url: string; expiresInSeconds: number };
+    };
+  }>(`/products/${encodeURIComponent(productId)}/image/download-grant`);
 }

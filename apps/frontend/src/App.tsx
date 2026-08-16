@@ -6,9 +6,16 @@ import {
   createProduct,
   getOrder,
   listProducts,
+  requestProductImageDownloadGrant,
 } from "./api";
 import { formatDate, formatMoney } from "./format";
-import type { Order, Product } from "./types";
+import {
+  confirmUploadedProductImage,
+  InvalidProductImageError,
+  uploadProductImage,
+  validateProductImage,
+} from "./product-image";
+import type { Order, Product, ProductImageUploadConfirmation } from "./types";
 
 type View = "inventory" | "add-product" | "order";
 type Cart = Record<string, number>;
@@ -44,6 +51,8 @@ function errorMessage(error: unknown) {
     return "A selected product no longer exists. Refresh the catalog and try again.";
   if (error.code === "order_not_found")
     return "No order was found for that ID.";
+  if (error.code === "upload_not_verified")
+    return "The uploaded image has not been verified yet. Retry confirmation.";
   return error.message;
 }
 
@@ -178,6 +187,7 @@ function Inventory({
             const unavailable = product.availableQuantity === 0;
             return (
               <article className="product-card" key={product.id}>
+                <ProductImagePreview product={product} />
                 <div className="card-top">
                   <span className="sku">{product.sku}</span>
                   <span className={`stock ${unavailable ? "stock--out" : ""}`}>
@@ -226,10 +236,80 @@ function Inventory({
   );
 }
 
+function ProductImagePreview({ product }: { product: Product }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!product.hasImage) {
+      setUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    void requestProductImageDownloadGrant(product.id)
+      .then((result) => {
+        if (!cancelled) setUrl(result.data.grant.url);
+      })
+      .catch(() => {
+        if (!cancelled) setUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product.hasImage, product.id]);
+
+  return url ? (
+    <img className="product-image" src={url} alt={product.name} />
+  ) : (
+    <div className="product-image-placeholder" aria-hidden="true">
+      <span>Image unavailable</span>
+    </div>
+  );
+}
+
+type PendingProductImage = {
+  productId: string;
+  file: File;
+  confirmation?: ProductImageUploadConfirmation;
+};
+
 function ProductForm({ onCreated }: { onCreated: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [pendingImage, setPendingImage] = useState<PendingProductImage | null>(
+    null,
+  );
+
+  async function finishProductImage(pending: PendingProductImage) {
+    setSubmitting(true);
+    setError(null);
+    let confirmation = pending.confirmation;
+    try {
+      if (!confirmation) {
+        confirmation = await uploadProductImage(
+          pending.productId,
+          pending.file,
+        );
+        setPendingImage({ ...pending, confirmation });
+      }
+      await confirmUploadedProductImage(pending.productId, confirmation);
+      setPendingImage(null);
+      setDone(true);
+      onCreated();
+    } catch (caught) {
+      setPendingImage({
+        ...pending,
+        ...(confirmation ? { confirmation } : {}),
+      });
+      setError(
+        `The product was created, but its image is still pending. ${errorMessage(caught)}`,
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -242,6 +322,11 @@ function ProductForm({ onCreated }: { onCreated: () => void }) {
     };
     const price = Number(form.get("priceRupees"));
     const stock = Number(form.get("initialQuantity"));
+    const imageInput = formElement.elements.namedItem("productImage");
+    const image =
+      imageInput instanceof HTMLInputElement
+        ? (imageInput.files?.item(0) ?? undefined)
+        : undefined;
     if (
       !Number.isFinite(price) ||
       price <= 0 ||
@@ -254,18 +339,36 @@ function ProductForm({ onCreated }: { onCreated: () => void }) {
       setError("Opening stock must be a whole number of zero or more.");
       return;
     }
+    if (image) {
+      try {
+        validateProductImage(image);
+      } catch (caught) {
+        setError(
+          caught instanceof InvalidProductImageError
+            ? caught.message
+            : "The selected product image is invalid.",
+        );
+        return;
+      }
+    }
     setSubmitting(true);
     try {
-      await createProduct({
+      const result = await createProduct({
         sku: stringValue("sku"),
         name: stringValue("name"),
         description: stringValue("description") || undefined,
         pricePaise: Math.round(price * 100),
         initialQuantity: stock,
       });
-      onCreated();
-      formElement.reset();
-      setDone(true);
+      if (image) {
+        const pending = { productId: result.data.id, file: image };
+        setPendingImage(pending);
+        await finishProductImage(pending);
+      } else {
+        onCreated();
+        formElement.reset();
+        setDone(true);
+      }
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -285,51 +388,86 @@ function ProductForm({ onCreated }: { onCreated: () => void }) {
         <Notice kind="success">Product and opening stock were created.</Notice>
       )}
       {error && <Notice kind="error">{error}</Notice>}
-      <form className="panel form" onSubmit={(event) => void submit(event)}>
-        <div className="form-row">
-          <label>
-            SKU<span>Unique stock-keeping code</span>
-            <input name="sku" required maxLength={64} autoComplete="off" />
-          </label>
-          <label>
-            Product name<span>Shown to order creators</span>
-            <input name="name" required maxLength={200} />
-          </label>
+      {pendingImage ? (
+        <div className="panel pending-image">
+          <h2>Finish the product image</h2>
+          <p>
+            The product record is safe. Retry the remaining image step without
+            creating the product again.
+          </p>
+          <div className="form-actions">
+            <button
+              className="primary"
+              disabled={submitting}
+              onClick={() => void finishProductImage(pendingImage)}
+            >
+              {submitting
+                ? "Retrying…"
+                : pendingImage.confirmation
+                  ? "Retry confirmation"
+                  : "Retry image upload"}
+            </button>
+            <button className="text-button" onClick={onCreated}>
+              Continue without image
+            </button>
+          </div>
         </div>
-        <label>
-          Description <span>Optional, up to 2,000 characters</span>
-          <textarea name="description" maxLength={2000} rows={4} />
-        </label>
-        <div className="form-row">
+      ) : (
+        <form className="panel form" onSubmit={(event) => void submit(event)}>
+          <div className="form-row">
+            <label>
+              SKU<span>Unique stock-keeping code</span>
+              <input name="sku" required maxLength={64} autoComplete="off" />
+            </label>
+            <label>
+              Product name<span>Shown to order creators</span>
+              <input name="name" required maxLength={200} />
+            </label>
+          </div>
           <label>
-            Price (₹)<span>For example, 499.00</span>
+            Description <span>Optional, up to 2,000 characters</span>
+            <textarea name="description" maxLength={2000} rows={4} />
+          </label>
+          <div className="form-row">
+            <label>
+              Price (₹)<span>For example, 499.00</span>
+              <input
+                name="priceRupees"
+                type="number"
+                required
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+              />
+            </label>
+            <label>
+              Opening stock<span>May be zero</span>
+              <input
+                name="initialQuantity"
+                type="number"
+                required
+                min="0"
+                step="1"
+                inputMode="numeric"
+              />
+            </label>
+          </div>
+          <label>
+            Product image{" "}
+            <span>Optional JPEG, PNG, or WebP; maximum 5 MiB</span>
             <input
-              name="priceRupees"
-              type="number"
-              required
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
+              name="productImage"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
             />
           </label>
-          <label>
-            Opening stock<span>May be zero</span>
-            <input
-              name="initialQuantity"
-              type="number"
-              required
-              min="0"
-              step="1"
-              inputMode="numeric"
-            />
-          </label>
-        </div>
-        <div className="form-actions">
-          <button className="primary" disabled={submitting}>
-            {submitting ? "Creating…" : "Create product"}
-          </button>
-        </div>
-      </form>
+          <div className="form-actions">
+            <button className="primary" disabled={submitting}>
+              {submitting ? "Creating…" : "Create product"}
+            </button>
+          </div>
+        </form>
+      )}
     </section>
   );
 }

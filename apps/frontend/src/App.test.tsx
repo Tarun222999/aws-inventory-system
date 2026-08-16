@@ -16,6 +16,7 @@ const product = {
   description: "Bold loose-leaf tea",
   pricePaise: 34900,
   availableQuantity: 4,
+  hasImage: false,
   createdAt: "2026-07-23T09:00:00.000Z",
   updatedAt: "2026-07-23T09:00:00.000Z",
 };
@@ -124,6 +125,107 @@ describe("App", () => {
         String(url).startsWith("/api/products?"),
       ),
     ).toHaveLength(2);
+  });
+
+  it("retries confirmation without uploading the image twice", async () => {
+    let created = false;
+    let confirmed = false;
+    let confirmationRequests = 0;
+    let uploadRequests = 0;
+    const objectKey = `products/${product.id}/11111111-1111-4111-8111-111111111111.png`;
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((url: string, init?: RequestInit) => {
+        if (url === "/api/products" && init?.method === "POST") {
+          created = true;
+          return json({ data: product }, 201);
+        }
+        if (url.endsWith("/image/upload-grant")) {
+          return json({
+            data: {
+              objectKey,
+              url: "https://example.invalid/signed-upload",
+              expiresInSeconds: 60,
+              requiredHeaders: {
+                "content-type": "image/png",
+                "x-amz-checksum-sha256": "checksum",
+                "if-none-match": "*",
+              },
+            },
+          });
+        }
+        if (url === "https://example.invalid/signed-upload") {
+          uploadRequests += 1;
+          return Promise.resolve(new Response(null, { status: 200 }));
+        }
+        if (url.endsWith("/image/confirm")) {
+          confirmationRequests += 1;
+          if (confirmationRequests === 1) {
+            return json(
+              {
+                error: {
+                  code: "product_image_service_unavailable",
+                  message: "Database temporarily unavailable",
+                },
+              },
+              503,
+            );
+          }
+          confirmed = true;
+          return json({ data: { productId: product.id, objectKey } }, 201);
+        }
+        if (url.endsWith("/image/download-grant")) {
+          return json({
+            data: {
+              image: { productId: product.id, objectKey },
+              grant: {
+                url: "https://example.invalid/signed-download",
+                expiresInSeconds: 60,
+              },
+            },
+          });
+        }
+        return json({
+          data: created ? [{ ...product, hasImage: confirmed }] : [],
+          pagination: { limit: 12, nextCursor: null },
+        });
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("crypto", {
+      subtle: {
+        digest: vi.fn().mockResolvedValue(new Uint8Array(32).buffer),
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("No products yet");
+    await user.click(screen.getByRole("button", { name: "Add a product" }));
+    await user.type(screen.getByLabelText(/SKU/), "TEA-1");
+    await user.type(screen.getByLabelText(/Product name/), "Assam tea");
+    await user.type(screen.getByLabelText(/Price/), "349");
+    await user.type(screen.getByLabelText(/Opening stock/), "4");
+    const file = new File(["image-bytes"], "tea.png", { type: "image/png" });
+    Object.defineProperty(file, "arrayBuffer", {
+      value: () =>
+        Promise.resolve(new TextEncoder().encode("image-bytes").buffer),
+    });
+    await user.upload(screen.getByLabelText(/Product image/), file);
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Retry confirmation" }),
+    ).toBeInTheDocument();
+    expect(uploadRequests).toBe(1);
+    await user.click(
+      screen.getByRole("button", { name: "Retry confirmation" }),
+    );
+
+    expect(
+      await screen.findByRole("img", { name: "Assam tea" }),
+    ).toHaveAttribute("src", "https://example.invalid/signed-download");
+    expect(confirmationRequests).toBe(2);
+    expect(uploadRequests).toBe(1);
   });
 
   it("clears a later-page cart and refetches page one after a stock conflict", async () => {

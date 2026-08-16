@@ -1,4 +1,5 @@
-import { createOrder, listProducts } from "./api";
+import { createOrder, listProducts, uploadProductImageBytes } from "./api";
+import type { ProductImageUploadGrant } from "./types";
 
 describe("API client", () => {
   it("sends the opaque product cursor without inspecting it", async () => {
@@ -47,6 +48,34 @@ describe("API client", () => {
     await expect(listProducts()).rejects.toMatchObject({
       status: 0,
       code: "network_unavailable",
+    });
+  });
+
+  it("uploads image bytes directly to the presigned S3 URL", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File(["image-bytes"], "tea.png", { type: "image/png" });
+    const grant: ProductImageUploadGrant = {
+      objectKey:
+        "products/be6c1524-c202-476f-9fa4-667bd56c422f/" +
+        "11111111-1111-4111-8111-111111111111.png",
+      url: "https://example-bucket.s3.ap-south-1.amazonaws.com/signed",
+      expiresInSeconds: 60,
+      requiredHeaders: {
+        "content-type": "image/png",
+        "x-amz-checksum-sha256": "checksum",
+        "if-none-match": "*",
+      },
+    };
+
+    await uploadProductImageBytes(grant, file);
+
+    expect(fetchMock).toHaveBeenCalledWith(grant.url, {
+      method: "PUT",
+      headers: grant.requiredHeaders,
+      body: file,
     });
   });
 });

@@ -1,6 +1,11 @@
-import { and, asc, eq, gt, or } from "drizzle-orm";
+import { and, asc, eq, gt, or, sql } from "drizzle-orm";
 
-import { inventory, products, type Database } from "@order-platform/database";
+import {
+  inventory,
+  productImages,
+  products,
+  type Database,
+} from "@order-platform/database";
 
 import type { ProductCursor } from "./product.cursor.js";
 import type { CreateProductInput } from "./product.schemas.js";
@@ -44,7 +49,11 @@ export async function createProduct(
         .returning();
 
       if (!stock) throw new Error("Inventory insert returned no row");
-      return { ...product, availableQuantity: stock.availableQuantity };
+      return {
+        ...product,
+        availableQuantity: stock.availableQuantity,
+        hasImage: false,
+      };
     });
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -61,6 +70,7 @@ const productSelection = {
   description: products.description,
   pricePaise: products.pricePaise,
   availableQuantity: inventory.availableQuantity,
+  hasImage: sql<boolean>`${productImages.id} is not null`,
   createdAt: products.createdAt,
   updatedAt: products.updatedAt,
 };
@@ -70,6 +80,7 @@ export async function findProductById(database: Database, id: string) {
     .select(productSelection)
     .from(products)
     .innerJoin(inventory, eq(inventory.productId, products.id))
+    .leftJoin(productImages, eq(productImages.productId, products.id))
     .where(eq(products.id, id))
     .limit(1);
   return product;
@@ -94,6 +105,7 @@ export async function listProducts(
     .select(productSelection)
     .from(products)
     .innerJoin(inventory, eq(inventory.productId, products.id))
+    .leftJoin(productImages, eq(productImages.productId, products.id))
     .where(cursorCondition)
     .orderBy(asc(products.createdAt), asc(products.id))
     .limit(limit + 1);
