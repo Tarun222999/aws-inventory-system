@@ -403,6 +403,42 @@ after a workload is separately approved and created.
 
 ## Exact stop/delete/retention and verification procedures
 
+## Controlled workload-role denial evidence — 2026-08-10
+
+- Task definition revision 2 was manually created and sanitized verification
+  confirmed the intended Fargate sizing/platform, existing execution and task
+  roles, immutable Phase 5 image tag, lab command, exact managed-secret name
+  reference, no plaintext or injected credential, no port mapping, exact log
+  settings, and required tags. Revision 1 contains configuration errors and
+  was not run.
+- The original RDS 60-minute running limit expired during manual preparation.
+  The overrun was detected from the RDS start event, stop was requested
+  immediately, and AWS later verified `stopped`. The new automatic restart is
+  2026-08-17 at 20:04 IST; review/delete or deliberately start-stop no later
+  than 2026-08-16. The cost cap was not exhausted, but the time-box boundary was
+  enforced rather than silently extended.
+- Under a separate explicit USD 0.01 extension, one permissionless-task-role
+  Fargate task ran from 20:08:24 to 20:09:03 IST. ECS execution-role duties
+  succeeded: the immutable image was pulled, the container started, and logs
+  arrived. The application then reached Secrets Manager using the task role
+  and produced one sanitized `AccessDeniedException`, proving network
+  reachability, workload identity, IAM default deny, and that knowledge of the
+  secret name alone grants no access.
+- The essential container exited with code 1 as designed. Verification found
+  zero running/pending tasks, zero task ENIs, and zero public IPv4 associations;
+  only the expected private stopped-RDS ENI remains. RDS is stopped. After the
+  user inspected the evidence, the one-day lab log group and temporary Phase 5
+  image were deleted and exact absence was verified. The repository contains
+  exactly the one prior healthy Phase 4 image, and the task role still has zero
+  inline or attached policies.
+- Session active-runtime cleanup is `VERIFIED`. Overall cleanup is `PARTIAL`
+  for the intentionally retained stopped RDS storage/backups/managed secret,
+  documented Phase 4/5 foundation, and separate untouched overdue inactive-
+  root-key review. Budget actual remained USD 0.364 at its delayed update; the
+  session is estimated below USD 0.04 before tax and below the combined USD
+  0.11 approved caps. Review RDS no later than 2026-08-16 before its automatic
+  restart on 2026-08-17 at 20:04 IST.
+
 ### Today's no-direct-charge controls
 
 1. If any control is incorrect, delete it only after confirming no RDS instance
@@ -437,6 +473,99 @@ after a workload is separately approved and created.
 
 ## Phase review (complete only at exit)
 
+## Successful database-lab preflight — 2026-08-11
+
+- The expected Identity Center caller and Mumbai Region were re-verified without
+  recording the account identifier. Budget actual was USD 0.517 against the USD
+  5 warning threshold at its latest delayed update.
+- RDS is stopped/private/Single-AZ with automatic restart on 2026-08-17 at
+  20:04 IST. The managed secret is active. ECS has zero services and zero
+  running/pending tasks; the task role has zero policies. There are zero ALBs,
+  target groups, NAT Gateways, EIPs, endpoints, task ENIs/public IPv4, relevant
+  logs, or Phase 5 buckets. One expected private RDS ENI and one prior healthy
+  ECR image remain.
+- Current Mumbai rates were refreshed from official AWS documentation and the
+  Price List API. The proposed group prepares image/log/IAM controls while RDS
+  stays stopped, then permits at most 75 running RDS minutes and one ten-minute
+  0.25-vCPU/0.5-GB task. Expected incremental usage is below USD 0.04 and the
+  conservative pre-tax cap is USD 0.07.
+- The one task is designed to prove exact-secret task-role access, verified TLS
+  and non-TLS denial, connection scaling, final-item concurrency, query-plan
+  evidence, and test-row cleanup. No service, ALB, NAT, endpoint, S3, restore,
+  rotation Lambda, or Phase 6+ service belongs to this group. The user
+  explicitly approved the USD 0.07 cap, 75-minute RDS limit, and one ten-minute
+  task on 2026-08-11; no resource had been created or started at the approval-
+  record checkpoint.
+- The user manually authenticated Docker to ECR with a temporary token and
+  re-uploaded the locally verified immutable `phase5-lab-20260810` image.
+  Read-only verification found the expected digest prefix, 111 MB compressed
+  size, and two temporary repository images. RDS remained stopped.
+- The user manually recreated the one-day Standard lab log group; exact name,
+  retention, tags, and zero stored bytes were verified. The user then created
+  one inline policy on the application task role. Sanitized verification found
+  exactly one Allow statement, only `secretsmanager:GetSecretValue`, and the
+  exact RDS-managed secret with no wildcard. The execution role remains limited
+  to its standard ECS execution policy. RDS was still stopped after all non-RDS
+  preparation completed.
+- The user then manually started RDS. AWS verified it private and `available`
+  at 23:13:04 IST. The approved 75-minute available-state deadline is
+  2026-08-12 at 00:28:04 IST; stop immediately after the single lab task rather
+  than consuming the full time box.
+- Revision 2 ran from 23:18:29 to 23:19:06 IST and exited 1. CloudTrail proved
+  the task role's exact `GetSecretValue` call succeeded, completing the
+  workload-role-only retrieval evidence. No stable RDS connection was observed,
+  and the final sanitizer exposed only generic `Error`. A local diagnostic
+  change now records only a safe stage and error/cause name/code. Type-check,
+  unit tests, formatting, and whitespace checks passed; integration tests were
+  not pointed at live RDS. One replacement-image/revision/task group remains
+  pending a separate explicit USD 0.02 approval; the RDS deadline is unchanged.
+- The approved diagnostic rerun used corrected task-definition revision 4;
+  revision 3 was never run because read-only comparison caught an unintended
+  container-name change. Revision 4 ran from 00:05:15 to 00:05:52 IST and
+  exited at the safe `resolve-database-secret` stage. CloudTrail again proved
+  successful workload-role `GetSecretValue` at 00:05:27 with no AWS error.
+- Official AWS guidance and the controlled failure established the mismatch:
+  the RDS-managed secret supplies `username` and `password`, while the local
+  code incorrectly required `host`, `port`, and `engine` in the same JSON.
+  Without retrieving the secret value, the code was corrected to accept
+  `DB_HOST`/`DB_PORT` as non-secret deployment configuration and keep only
+  credentials in Secrets Manager. Six config tests and config type-check pass.
+- A separate proposed rerun gate permits at most 30 additional RDS minutes from
+  00:10:16 IST (hard stop 00:40:16), one corrected image/revision, and one
+  ten-minute task, with a conservative incremental pre-tax cap of USD 0.03.
+  The user explicitly approved this complete gate after the ledger update.
+- The corrected image and task-definition revision 5 were verified before use:
+  only the intended image and non-secret `DB_HOST`/`DB_PORT` settings changed,
+  both topology values matched live RDS, and all other roles, command, logging,
+  environment values, resources, and tags matched the prior revision.
+- Revision 5 ran from 00:28:46 to 00:29:24 IST and exited 0. Evidence proved
+  migrations applied; TLS 1.3 with `TLS_AES_256_GCM_SHA384`; controlled non-TLS
+  rejection with PostgreSQL code `28000`; observed connections 1/2/4 for safely
+  simulated task counts 1/2/4 with pool ceilings 5/10/20; exactly one successful
+  order and one insufficient-stock failure for the final item with quantity 0;
+  an `Index Scan` using `products_sku_unique` (one actual row, 0.035 ms execution
+  in this tiny lab); and deletion of all test rows.
+- The RDS stop request was accepted at 00:40:02 IST, 14 seconds before the
+  approved 00:40:16 hard deadline. At 00:41 it remained `stopping`; zero
+  running/pending tasks and absence of the task ENI/public IPv4 were verified.
+  The zero-byte lab log group, two-image ECR retention decision, exact-secret
+  task-role policy, final `stopped` state, and full retained-foundation audit
+  remain cleanup-pending and must not be treated as complete yet.
+- The user deleted the zero-byte Phase 5 lab log group after evidence capture;
+  exact absence was verified at 00:44:59 IST. Delayed ingestion usage may
+  still appear, but there is no remaining log-storage resource.
+- With separate confirmation, the user deleted only the older Phase 4 image.
+  Read-only verification found exactly one repository image: the corrected
+  111-MB Phase 5 image used by the successful lab. It is retained as the new
+  known-good baseline at about USD 0.0111/month, with review on 2026-08-31 and
+  at the Phase 8/9 boundary.
+- Resume verification on 2026-08-12 found RDS fully `stopped`, private, and
+  Single-AZ, with automatic restart scheduled for 2026-08-19 at 00:48 IST;
+  review, delete, or deliberately start-stop it no later than 2026-08-18.
+  The expected Identity Center role and Mumbai Region were verified, with zero
+  running/pending ECS tasks, no lab log group, and exactly the corrected Phase
+  5 image retained.
+
 ```text
 Confidence (0-4):
 Concurrency result:
@@ -450,3 +579,125 @@ Retained data and cost:
 Phase 5 runtime cleanup status:
 Overall cleanup status:
 ```
+
+## Backward-compatible migration demonstration — 2026-08-12
+
+- A disposable local PostgreSQL 16.4 container on loopback port 55432 was used;
+  no AWS resource or project database was started or modified. The lab
+  container and its anonymous data volume were removed afterward, and exact
+  container absence was verified.
+- The scenario migrated `products.price_paise` to `unit_price_paise` using the
+  expand/backfill/contract pattern. The expanded schema kept the old column and
+  added the new column as nullable, so the old reader and old writer continued
+  to work during a simulated rolling deployment.
+- Existing rows were backfilled. A new compatible reader used
+  `COALESCE(unit_price_paise, price_paise)`, allowing it to read both migrated
+  rows and a row concurrently created by old code. New-code dual writes kept a
+  newly inserted row readable by old code and therefore rollback-compatible.
+- A final backfill reported zero null or mismatched rows. The new column was
+  validated with a separately validated `NOT VALID` check before `SET NOT
+  NULL`, illustrating how validation work can be separated on a large table.
+- The contract step dropped `price_paise` only after assuming old tasks were
+  gone and the rollback window had closed. The old query then failed with the
+  expected missing-column error, while the new query returned all three rows.
+  This controlled failure proves the contract migration must be a later
+  deployment rather than part of the initial expand release.
+- Result: old app + expanded schema worked; new app + expanded schema worked;
+  old app + contracted schema failed as designed; new app + contracted schema
+  worked. No permanent repository migration was created because this was a
+  learning scenario rather than an approved product-schema change.
+
+## Proposed point-in-time restore evidence — 2026-08-13
+
+- The expected Identity Center role and Mumbai Region were verified without
+  recording the account identifier. Budget actual was USD 0.667 of the USD 5
+  warning threshold at its latest delayed update.
+- The source remains stopped/private/encrypted/Single-AZ with 20 GiB gp3 and an
+  active one-day automated backup. It reports a latest restorable point from
+  the successful database lab. The restore target name is unused; there is one
+  source DB, zero manual snapshots, zero ECS tasks, no restore log group, one
+  corrected image, one exact-source-secret policy, and no ALB, active NAT, EIP,
+  or endpoint.
+- The proposed evidence restores one temporary private Single-AZ db.t4g.micro
+  to Latest restorable time, measures request-to-available time, runs one
+  ten-minute workload-role verification task, and deletes the target without a
+  final snapshot or retained automated backups. The source stays stopped.
+- A 90-minute target lifetime plus one task and bounded logs is conservatively
+  capped at USD 0.08 before tax. Target deletion is required immediately after
+  evidence and no later than 90 minutes after the restore request. The user
+  explicitly approved this complete gate before any restore resource existed.
+- The user created the PITR target using Latest restorable time at 00:21:39 IST.
+  Read-only verification found the intended private encrypted Single-AZ
+  `db.t4g.micro`, 20 GiB gp3 with autoscaling off, zero-day backups, deletion
+  protection and Enhanced Monitoring off, exact subnet/security/parameter
+  groups, and required tags. The source remained stopped. The target became
+  available by 00:35:08 IST, approximately 13.5 minutes after the restore
+  request and within the proposed 60-minute RTO. Hard delete-request deadline
+  remains 01:51:39 IST.
+- Revision 6 changed only the restored endpoint and isolated restore log group.
+  One task started at 00:50:36 IST and exited 0 in under one minute. It proved
+  existing exact-secret credentials authenticated to the restored PostgreSQL
+  copy, migrations/schema were usable, TLS 1.3 succeeded, non-TLS was rejected,
+  connection simulations and final-item concurrency passed, the SKU index was
+  used, and test rows were deleted.
+- Target deletion without final snapshot or retained automated backups was
+  requested about 33.4 minutes after restore request. Exact target absence was
+  verified at 00:55:58 IST. Zero target backup, snapshot, or target-named secret
+  remains; task ENI/public IPv4 and all running/pending tasks are absent. The
+  isolated restore log group was deleted and exact absence verified.
+- Measured PITR request-to-available time was approximately 13.5 minutes,
+  meeting the learning RTO of 60 minutes. The chosen learning RPO remains five
+  minutes, consistent with RDS transaction-log upload behavior but not a hard
+  guarantee for every individual incident; the actual latest restorable time
+  must always be checked during recovery.
+- Restore active-runtime cleanup is `VERIFIED`. Overall cleanup is `PARTIAL`
+  for the intentionally stopped source storage/backups/managed secret, exact-
+  secret policy, one corrected image, retained network/ECS foundation, and the
+  separate untouched overdue inactive-root-key review. Delayed restore usage
+  may appear; the exercise is expected below USD 0.03 and its USD 0.08 cap.
+
+## RDS-managed credential rotation and recovery — 2026-08-16
+
+- A version-aware secret loader requests only the `AWSCURRENT` stage through
+  the ECS task role. The rotation lab records the initial version only in
+  memory, verifies an initial TLS connection, closes that pool, and polls at a
+  bounded five-second interval without logging credential or version values.
+- Task-definition revision 7 provided a useful pre-launch controlled failure:
+  it accidentally inherited revision 6's deleted restore endpoint. Read-only
+  comparison caught the mismatch. Revision 8 was explicitly based on the
+  known-good source revision 5 and verified for image, command, roles,
+  non-secret DB topology, TLS CA path, timing, logging, sizing, and tags before
+  launch.
+- Revision 8 started at 00:39:30 IST. It authenticated with the old current
+  credential and confirmed certificate-validated TLS 1.3, then logged only the
+  sanitized awaiting state. An initial immediate-rotation request returned the
+  safe overlapping-rotation error; it was not assumed successful. Managed
+  rotation completed at 00:46:47 IST and the task detected the version change.
+- A new physical connection using the old credential retained only in process
+  memory failed as intended with PostgreSQL code `28P01`. The task then used
+  the new `AWSCURRENT` credential, created a fresh pool, reconnected over TLS
+  1.3, and exited 0 at 00:47:16 IST. Recovery required neither a task restart
+  nor task-definition change. No password, secret value, endpoint, ARN,
+  account identifier, or version identifier was logged.
+- This demonstrates application recovery from single-user managed rotation,
+  not zero-downtime production rotation. Existing authenticated connections
+  may survive a password change, while new connections using cached old
+  credentials fail. A production application should use a least-privileged
+  application DB user, deliberate caching/refresh behavior, retry with
+  backoff, and consider alternating-user rotation when connection continuity
+  requirements justify it.
+- RDS was started at 00:32:36, became available at 00:36:44, and reached
+  `stopped` at 01:02:05 IST, well before the approved 60-minute limit. Its new
+  automatic restart is 2026-08-23 01:02 IST, so review/start-stop/delete it by
+  2026-08-22. Revision 8 ran about 7.8 minutes; zero tasks/services and task
+  ENI/public IPv4 absence were verified afterward.
+- The temporary zero-byte rotation log group was deleted and verified absent.
+  With separate explicit confirmation, the superseded Phase 5 image was
+  deleted; exactly one successful 116,359,328-byte rotation image remains at
+  about USD 0.0116/month. No ALB/target group, NAT/EIP, endpoint, public ENI,
+  restore DB, Phase 5 log group, or Phase 5 bucket remains.
+- Expected incremental rotation cost is below USD 0.02 and the approved USD
+  0.06 cap; delayed usage may still appear. Rotation active-runtime cleanup is
+  `VERIFIED`. Overall cleanup remains `PARTIAL` for the stopped DB
+  storage/backups/managed secret, exact-secret policy, one ECR image, retained
+  foundation, and separately untouched overdue inactive-root-key review.

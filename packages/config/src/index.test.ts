@@ -5,6 +5,7 @@ import {
   loadApiConfig,
   loadWorkerConfig,
   resolveDatabaseEnvironment,
+  resolveDatabaseSecretSnapshot,
 } from "./index.js";
 
 const databaseUrl = "postgresql://user:password@localhost:5432/order_platform";
@@ -57,7 +58,9 @@ void test("builds an encoded PostgreSQL URL from an RDS-managed secret", async (
   const resolved = await resolveDatabaseEnvironment(
     {
       AWS_REGION: "ap-south-1",
+      DB_HOST: "private.example.rds.amazonaws.com",
       DB_NAME: "order_platform",
+      DB_PORT: "5432",
       DB_SECRET_ID: "secret-reference",
     },
     (secretId, region) => {
@@ -65,10 +68,7 @@ void test("builds an encoded PostgreSQL URL from an RDS-managed secret", async (
       assert.equal(region, "ap-south-1");
       return Promise.resolve(
         JSON.stringify({
-          engine: "postgres",
-          host: "private.example.rds.amazonaws.com",
           password: "special:/?#[]@ password",
-          port: 5432,
           username: "order_admin",
         }),
       );
@@ -87,7 +87,9 @@ void test("builds an encoded PostgreSQL URL from an RDS-managed secret", async (
 void test("rejects a malformed or non-PostgreSQL database secret", async () => {
   const environment = {
     AWS_REGION: "ap-south-1",
+    DB_HOST: "private.example.rds.amazonaws.com",
     DB_NAME: "order_platform",
+    DB_PORT: "5432",
     DB_SECRET_ID: "secret-reference",
   };
 
@@ -109,4 +111,32 @@ void test("rejects a malformed or non-PostgreSQL database secret", async () => {
     ),
     /engine must be postgres/,
   );
+});
+
+void test("resolves a versioned RDS secret without exposing its fields", async () => {
+  const snapshot = await resolveDatabaseSecretSnapshot(
+    {
+      AWS_REGION: "ap-south-1",
+      DB_HOST: "private.example.rds.amazonaws.com",
+      DB_NAME: "order_platform",
+      DB_PORT: "5432",
+      DB_SECRET_ID: "secret-reference",
+    },
+    (secretId, region) => {
+      assert.equal(secretId, "secret-reference");
+      assert.equal(region, "ap-south-1");
+      return Promise.resolve({
+        secretText: JSON.stringify({
+          password: "rotated-password",
+          username: "order_admin",
+        }),
+        versionId: "version-two",
+      });
+    },
+  );
+
+  assert.equal(snapshot.versionId, "version-two");
+  const url = new URL(snapshot.environment.DATABASE_URL ?? "");
+  assert.equal(url.hostname, "private.example.rds.amazonaws.com");
+  assert.equal(url.password, "rotated-password");
 });

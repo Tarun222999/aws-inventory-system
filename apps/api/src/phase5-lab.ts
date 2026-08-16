@@ -30,7 +30,7 @@ type ExplainPlan = {
   "Planning Time"?: number;
 };
 
-function safeError(error: unknown) {
+function errorIdentity(error: unknown) {
   if (typeof error !== "object" || error === null) {
     return { name: "UnknownError" };
   }
@@ -47,12 +47,32 @@ function safeError(error: unknown) {
   };
 }
 
+function safeError(error: unknown) {
+  const identity = errorIdentity(error);
+  const cause =
+    typeof error === "object" &&
+    error !== null &&
+    "cause" in error &&
+    error.cause !== error
+      ? errorIdentity(error.cause)
+      : undefined;
+
+  return { ...identity, cause };
+}
+
+let currentStage = "startup";
+
 async function main() {
-  const config = loadApiConfig(await resolveDatabaseEnvironment());
+  currentStage = "resolve-database-secret";
+  const databaseEnvironment = await resolveDatabaseEnvironment();
+  currentStage = "validate-application-config";
+  const config = loadApiConfig(databaseEnvironment);
+  currentStage = "validate-tls-config";
   if (!config.DATABASE_SSL_CA_PATH) {
     throw new Error("DATABASE_SSL_CA_PATH is required for the Phase 5 lab");
   }
 
+  currentStage = "create-database-pool";
   const connection = createDatabase(config.DATABASE_URL, {
     applicationName: "order-platform-phase5-lab",
     maxConnections: config.DATABASE_POOL_MAX,
@@ -62,6 +82,7 @@ async function main() {
   });
 
   try {
+    currentStage = "apply-migrations";
     await migrate(connection.database, {
       migrationsFolder: fileURLToPath(
         new URL("../../../packages/database/migrations", import.meta.url),
@@ -69,6 +90,7 @@ async function main() {
     });
     console.log("phase5.migrations", { applied: true });
 
+    currentStage = "verify-tls";
     const tls = await connection.pool.query<{
       cipher: string;
       ssl: boolean;
@@ -83,6 +105,7 @@ async function main() {
       version: tls.rows[0]?.version,
     });
 
+    currentStage = "verify-non-tls-denial";
     const nonTls = createDatabase(config.DATABASE_URL, {
       applicationName: "order-platform-phase5-non-tls-test",
       maxConnections: 1,
@@ -104,6 +127,7 @@ async function main() {
       error: nonTlsError,
     });
 
+    currentStage = "simulate-connection-scaling";
     const simulatedPools: Array<ReturnType<typeof createDatabase>> = [];
     const heldClients: Array<{ release: () => void }> = [];
     try {
@@ -136,6 +160,7 @@ async function main() {
       await Promise.all(simulatedPools.map((pool) => pool.close()));
     }
 
+    currentStage = "verify-final-item-concurrency";
     const sku = `PHASE5-${Date.now()}`;
     const product = await createProduct(connection.database, {
       initialQuantity: 1,
@@ -175,6 +200,7 @@ async function main() {
         successfulOrders: successfulOrderIds.length,
       });
 
+      currentStage = "capture-query-plan";
       const explanation = await connection.pool.query<{
         "QUERY PLAN": ExplainPlan[];
       }>(
@@ -200,6 +226,7 @@ async function main() {
         .where(eq(products.id, product.id));
     }
 
+    currentStage = "complete";
     console.log("phase5.lab", { completed: true, testRowsDeleted: true });
   } finally {
     await connection.close();
@@ -207,6 +234,10 @@ async function main() {
 }
 
 void main().catch((error: unknown) => {
-  console.error("phase5.lab", { completed: false, error: safeError(error) });
+  console.error("phase5.lab", {
+    completed: false,
+    error: safeError(error),
+    stage: currentStage,
+  });
   process.exitCode = 1;
 });

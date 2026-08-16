@@ -1,4 +1,7 @@
-export { resolveDatabaseEnvironment } from "./runtime-database.js";
+export {
+  resolveDatabaseEnvironment,
+  resolveDatabaseSecretSnapshot,
+} from "./runtime-database.js";
 
 import { z } from "zod";
 
