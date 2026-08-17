@@ -9,6 +9,7 @@ type DatabaseOptions = {
   applicationName: string;
   maxConnections: number;
   onPoolError: (error: Error) => void;
+  queryTimeoutMillis?: number;
   sslCertificateAuthorityPath?: string;
 };
 
@@ -19,7 +20,7 @@ export function createDatabase(databaseUrl: string, options: DatabaseOptions) {
     max: options.maxConnections,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
-    query_timeout: 2_000,
+    query_timeout: options.queryTimeoutMillis ?? 2_000,
     ...(options.sslCertificateAuthorityPath
       ? {
           ssl: {

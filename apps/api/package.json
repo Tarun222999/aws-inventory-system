@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "migrate:run": "tsx --env-file-if-exists=../../.env src/migrate.ts",
     "phase5:lab": "tsx src/phase5-lab.ts",
     "phase5:rotation": "tsx src/phase5-rotation-lab.ts",
     "phase5:s3": "tsx src/phase5-s3-lab.ts",
