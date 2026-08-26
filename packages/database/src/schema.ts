@@ -27,6 +27,12 @@ export const jobStatus = pgEnum("job_status", [
   "failed",
 ]);
 
+export const outboxStatus = pgEnum("outbox_status", [
+  "pending",
+  "publishing",
+  "published",
+]);
+
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true, precision: 3 })
     .defaultNow()
@@ -175,6 +181,58 @@ export const jobs = pgTable(
     check("jobs_type_not_blank", sql`length(trim(${table.type})) > 0`),
     check(
       "jobs_lock_fields_together",
+      sql`(${table.lockedAt} is null) = (${table.lockedBy} is null)`,
+    ),
+  ],
+);
+
+export const outboxMessages = pgTable(
+  "outbox_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    messageType: varchar("message_type", { length: 100 }).notNull(),
+    payload: jsonb("payload").notNull().default({}),
+    status: outboxStatus("status").notNull().default("pending"),
+    publishAttempts: integer("publish_attempts").notNull().default(0),
+    availableAt: timestamp("available_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .notNull(),
+    lockedAt: timestamp("locked_at", { withTimezone: true, precision: 3 }),
+    lockedBy: varchar("locked_by", { length: 200 }),
+    publishedAt: timestamp("published_at", {
+      withTimezone: true,
+      precision: 3,
+    }),
+    lastError: text("last_error"),
+    ...timestamps,
+  },
+  (table) => [
+    index("outbox_messages_claim_index").on(
+      table.status,
+      table.availableAt,
+      table.createdAt,
+    ),
+    index("outbox_messages_order_id_index").on(table.orderId),
+    uniqueIndex("outbox_messages_job_type_unique").on(
+      table.jobId,
+      table.messageType,
+    ),
+    check(
+      "outbox_messages_publish_attempts_non_negative",
+      sql`${table.publishAttempts} >= 0`,
+    ),
+    check(
+      "outbox_messages_type_not_blank",
+      sql`length(trim(${table.messageType})) > 0`,
+    ),
+    check(
+      "outbox_messages_lock_fields_together",
       sql`(${table.lockedAt} is null) = (${table.lockedBy} is null)`,
     ),
   ],

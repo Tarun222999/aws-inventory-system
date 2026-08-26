@@ -6,6 +6,7 @@ import {
   orderItems,
   orders,
   products,
+  outboxMessages,
   type Database,
 } from "@order-platform/database";
 
@@ -106,12 +107,26 @@ export async function createOrder(database: Database, input: CreateOrderInput) {
         .where(eq(inventory.productId, product.id));
     }
 
-    await transaction.insert(jobs).values({
-      orderId: order.id,
-      type: "fulfill_order",
-      payload: { orderId: order.id },
-    });
+    const [job] = await transaction
+      .insert(jobs)
+      .values({
+        orderId: order.id,
+        type: "fulfill_order",
+        payload: { orderId: order.id },
+      })
+      .returning();
 
+    if (!job) throw new Error("Job insert returned no row");
+
+    await transaction.insert(outboxMessages).values({
+      jobId: job.id,
+      orderId: order.id,
+      messageType: "fulfill_order",
+      payload: {
+        jobId: job.id,
+        orderId: order.id,
+      },
+    });
     return { ...order, items };
   });
 }

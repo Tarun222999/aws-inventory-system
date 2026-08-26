@@ -7,6 +7,7 @@ import {
   createDatabase,
   inventory,
   jobs,
+  outboxMessages,
   orders,
   products,
 } from "@order-platform/database";
@@ -61,6 +62,19 @@ void test("accepts an order, decrements stock, and records pending work", async 
       .where(eq(jobs.orderId, order.id));
     assert.equal(job?.status, "pending");
     assert.equal(job?.type, "fulfill_order");
+    assert.ok(job);
+
+    const [outboxMessage] = await connection.database
+      .select()
+      .from(outboxMessages)
+      .where(eq(outboxMessages.jobId, job.id));
+    assert.equal(outboxMessage?.orderId, order.id);
+    assert.equal(outboxMessage?.messageType, "fulfill_order");
+    assert.equal(outboxMessage?.status, "pending");
+    assert.deepEqual(outboxMessage?.payload, {
+      jobId: job.id,
+      orderId: order.id,
+    });
   } finally {
     if (orderId) {
       await connection.database.delete(orders).where(eq(orders.id, orderId));

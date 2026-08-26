@@ -567,17 +567,47 @@ after a workload is separately approved and created.
   5 image retained.
 
 ```text
-Confidence (0-4):
-Concurrency result:
-Connection-scaling result:
-Query-plan/index decision:
-Migration compatibility reasoning:
-RTO/RPO decision and restore evidence:
-Secret retrieval/rotation result:
-Presigned upload result:
-Retained data and cost:
-Phase 5 runtime cleanup status:
-Overall cleanup status:
+Confidence (0-4): 3 — can explain and demonstrate independently; repeat the
+  production trade-off analysis before claiming level 4.
+Concurrency result: Two concurrent HTTP orders raced for quantity one. Exactly
+  one returned 201, one returned 409, and final available quantity was zero.
+  The transaction, deterministic SELECT FOR UPDATE locking, stock recheck, and
+  non-negative constraint prevented overselling.
+Connection-scaling result: Safe simulations observed 1/2/4 database sessions
+  for 1/2/4 application instances. With pool max 5, the corresponding ceilings
+  are 5/10/20; four API plus two worker tasks budget 30 connections rather than
+  the previous 60, leaving deployment/administrative headroom.
+Query-plan/index decision: EXPLAIN ANALYZE used products_sku_unique through an
+  Index Scan for the representative parameterized SKU lookup. Keep the existing
+  unique index; the tiny data set does not justify another index.
+Migration compatibility reasoning: Expand with a nullable new column, deploy
+  dual-read/dual-write compatibility, backfill and validate separately, then
+  contract only after old tasks and the rollback window are gone. The old app
+  failed only after the deliberate contract step.
+RTO/RPO decision and restore evidence: Learning RTO 60 minutes and RPO 5
+  minutes. A private PITR target became available in about 13.5 minutes, passed
+  TLS/schema/workload-role checks, and was deleted without a final snapshot.
+Secret retrieval/rotation result: Only the workload task role retrieved the
+  exact managed secret. TLS 1.3 succeeded, non-TLS failed, old credentials
+  failed after rotation, and a fresh AWSCURRENT retrieval reconnected without
+  exposing values.
+Presigned upload result: A private bucket denied unsigned PUT/GET, accepted a
+  checksum/type/If-None-Match-bound signed PUT, rejected overwrite replay, and
+  served a signed GET. The real local UI then completed upload, confirmation,
+  short-lived download, and image rendering without public bucket access.
+Retained data and cost: Stopped 20-GiB RDS storage about USD 2.62/month; one
+  managed secret about USD 0.40/month; one 119,883,392-byte ECR image about USD
+  0.012/month; one 29,792-byte S3 image about USD 0.00000075/month; backup
+  excess, requests, transfer, and tax remain variable. Review RDS by 2026-08-23
+  before automatic restart on 2026-08-24 23:46 IST; review all retained Phase
+  4/5 resources by 2026-08-31 and the Phase 8/9 boundary.
+Phase 5 runtime cleanup status: VERIFIED — zero services/tasks, ALB/listener/
+  target group, task or ALB public ENIs/IPv4s, NAT/EIP/endpoints, temporary
+  CORS, incomplete multipart uploads, or Phase 5 log groups; RDS is stopped.
+Overall cleanup status: PARTIAL — the documented Phase 4/5 foundation, stopped
+  RDS/storage/backups/managed secret, scoped task permissions, one clean ECR
+  image, private bucket, and one product image remain intentionally retained.
+  The separate overdue inactive-root-key review was not inspected or modified.
 ```
 
 ## Backward-compatible migration demonstration — 2026-08-12
@@ -701,3 +731,87 @@ Overall cleanup status:
   `VERIFIED`. Overall cleanup remains `PARTIAL` for the stopped DB
   storage/backups/managed secret, exact-secret policy, one ECR image, retained
   foundation, and separately untouched overdue inactive-root-key review.
+
+## Dedicated migration runner — 2026-08-16
+
+- Migration execution was separated from API startup. The dedicated
+  `migrate:run` task checked out one PostgreSQL session, verified TLS, acquired
+  a session-level advisory lock, applied only pending Drizzle migrations, and
+  verified the latest journal target before releasing the lock and exiting.
+- Revision 11 inherited the known-good private DB/TLS/secret configuration and
+  changed only to the clean integrated image, migration command, and isolated
+  log destination. It reported TLS 1.3, applied through
+  `0003_panoramic_moon_knight`, verified the journal, and exited 0.
+- The advisory lock serializes migration runners; transactional migrations
+  preserve per-migration atomicity. A deployment should run this bounded job
+  before replacing API tasks rather than allowing every API replica to race
+  migrations during startup.
+- The migration task, ENI, public IPv4, RDS compute, and migration log group
+  were removed/stopped and verified. Superseded ECR images were deleted after
+  separate exact approval, leaving one clean integrated image.
+
+## Private S3 and real application integration — 2026-08-16 to 2026-08-18
+
+- The private product-image bucket uses bucket-owner-enforced ownership,
+  SSE-S3, all four Block Public Access controls, and no public bucket policy.
+  The task role is limited to Get/Put/Delete on the exact `products/*` object
+  prefix and cannot list or administer the bucket.
+- A controlled proof demonstrated unsigned PUT 403, signed PUT 200, replay
+  overwrite 412, unsigned GET 403, and signed GET 200 with matching bytes/type.
+  No presigned URL, object key, account identifier, endpoint, or credential was
+  written to the retained evidence.
+- The real frontend obtains an upload grant from the API, uploads bytes directly
+  to S3 with the required content type, checksum, and `If-None-Match`, then asks
+  the API to confirm object size/type/checksum before storing metadata. A failed
+  confirmation is retryable without uploading a second object. Download grants
+  are short-lived bearer URLs; expiry requires the client to request a new one.
+- Temporary CORS allowed only the local development origin and required methods
+  and headers. It was removed after the browser demonstration. CORS never
+  replaced IAM/signature authorization.
+- Revision 14 exposed two controlled deployment failures before traffic:
+  selecting the ALB security group on the task broke the intended SG chain, and
+  binding the API to `127.0.0.1` made it unreachable through the task ENI. Both
+  tasks were stopped and their ENIs/public IPv4s verified absent. Revision 15
+  used only the task security group and `API_HOST=0.0.0.0`.
+- Revision 15 became a healthy IP target. Requests through the ALB returned 200
+  for `/health` and database-backed `/ready`; product create/list worked; the
+  local UI uploaded, confirmed, downloaded, and rendered an image. Two
+  concurrently released HTTP orders for a stock-one product returned 201 and
+  409, with final inventory zero.
+- Frontend hosting, HTTPS/custom DNS, and automatic ECS-service target
+  registration remain Phase 8 work. This Phase 5 lab used a local frontend and
+  manually registered one standalone task private IP so the underlying target
+  mechanism stayed visible.
+
+## Final retained-resource and cleanup audit — 2026-08-18
+
+- Expected Identity Center access and Mumbai were re-verified without recording
+  the account identifier. The final VPC audit found one expected private
+  stopped-RDS ENI and zero public IPv4 associations, NAT Gateways, Elastic IPs,
+  or VPC endpoints.
+- ECS is empty: zero services, running tasks, pending tasks, container instances,
+  task ENIs, or task public IPv4s. There are zero order-platform ALBs, listeners,
+  or target groups and zero Phase 5 log groups.
+- RDS is stopped, private, encrypted, Single-AZ PostgreSQL 16.14 on
+  `db.t4g.micro` with 20 GiB gp3 and one-day backup retention. Its parameter
+  group is in sync, managed secret is active with rotation enabled, and there
+  are zero Phase 5 manual snapshots or Aurora clusters. Automatic restart is
+  2026-08-24 23:46 IST; review/start-stop/delete by 2026-08-23.
+- The task role has exactly the intended secret retrieval plus S3 object actions
+  and no wildcard resource. The private bucket has no CORS or bucket policy,
+  all public-access blocks enabled, one approved 29,792-byte image, and zero
+  incomplete multipart uploads. Review/delete it by 2026-08-31 or the Phase 8/9
+  boundary.
+- ECR contains exactly one 119,883,392-byte image with a completed Basic scan
+  and zero Critical/High/Medium/Low findings. The stopped DB storage, active
+  secret, clean image, and one S3 object have an estimated fixed residual of
+  about USD 3.032001/month before backup excess, requests, transfer, and tax.
+- Temporary task/ALB/RDS runtime exceeded one intermediate target time after
+  two corrected task launches and a listener-only deletion was caught. Final
+  deletion/stop was nevertheless verified directly. Delayed ALB/LCU/public-
+  IPv4, Fargate, RDS, log-ingestion, request, transfer, and tax charges may
+  still appear; the USD 5 budget is delayed and was never treated as a cap.
+- Phase 5 is `COMPLETE` at confidence 3. Phase 5 disposable-runtime cleanup is
+  `VERIFIED`; overall account cleanup is `PARTIAL` for the intentional retained
+  foundation/data and the separate overdue inactive-root-key review, which was
+  not inspected, exposed, modified, or deleted.

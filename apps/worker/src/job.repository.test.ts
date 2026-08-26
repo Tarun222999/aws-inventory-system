@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { createDatabase, jobs, orders } from "@order-platform/database";
 
 import {
+  claimJobForSqsDelivery,
   claimNextJob,
   completeJob,
   recordJobFailure,
@@ -168,6 +169,54 @@ void test("a new worker recovers an expired processing lease", async () => {
       ),
       true,
     );
+  } finally {
+    await cleanupOrder(fixture.order.id);
+  }
+});
+
+void test("claims an SQS delivery once and recognizes a completed duplicate", async () => {
+  const fixture = await createTestJob();
+  try {
+    const firstClaim = await claimJobForSqsDelivery(
+      connection.database,
+      fixture.job.id,
+      "sqs-worker",
+      30_000,
+    );
+    assert.ok(firstClaim.kind === "claimed");
+    assert.equal(firstClaim.job.id, fixture.job.id);
+    assert.equal(
+      await completeJob(connection.database, fixture.job.id, "sqs-worker"),
+      true,
+    );
+
+    const duplicate = await claimJobForSqsDelivery(
+      connection.database,
+      fixture.job.id,
+      "sqs-worker",
+      30_000,
+    );
+    assert.equal(duplicate.kind, "already_completed");
+  } finally {
+    await cleanupOrder(fixture.order.id);
+  }
+});
+
+void test("does not claim an SQS delivery while another worker holds a fresh lease", async () => {
+  const fixture = await createTestJob({
+    status: "processing",
+    attempts: 1,
+    lockedAt: new Date(),
+    lockedBy: "other-worker",
+  });
+  try {
+    const result = await claimJobForSqsDelivery(
+      connection.database,
+      fixture.job.id,
+      "sqs-worker",
+      30_000,
+    );
+    assert.equal(result.kind, "not_claimable");
   } finally {
     await cleanupOrder(fixture.order.id);
   }

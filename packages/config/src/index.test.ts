@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   loadApiConfig,
+  loadOutboxPublisherConfig,
   loadWorkerConfig,
   resolveDatabaseEnvironment,
   resolveDatabaseSecretSnapshot,
@@ -40,6 +41,20 @@ void test("rejects unsafe database pool limits", () => {
       }),
     );
   }
+});
+
+void test("requires an SQS destination for the outbox publisher", () => {
+  const config = loadOutboxPublisherConfig({
+    DATABASE_URL: databaseUrl,
+    ORDER_PROCESSING_QUEUE_URL:
+      "https://sqs.ap-south-1.amazonaws.com/123456789012/order-processing",
+  });
+  assert.equal(config.AWS_REGION, "ap-south-1");
+  assert.equal(config.OUTBOX_POLL_INTERVAL_MS, 1_000);
+  assert.equal(config.OUTBOX_LEASE_TIMEOUT_MS, 30_000);
+  assert.equal(config.OUTBOX_RETRY_DELAY_MS, 1_000);
+
+  assert.throws(() => loadOutboxPublisherConfig({ DATABASE_URL: databaseUrl }));
 });
 
 void test("keeps an explicit local database URL without loading a secret", async () => {

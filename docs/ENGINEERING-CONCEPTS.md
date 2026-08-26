@@ -303,35 +303,46 @@ Cleanup status: VERIFIED for disposable Phase 4 runtime on 2026-08-05. The
 
 ### I should be able to answer
 
-- [ ] How can two customers attempt to purchase the last item concurrently?
-- [ ] Which transaction strategy prevents overselling, and what is its trade-off?
-- [ ] Why can adding ECS tasks exhaust database connections?
-- [ ] How should the pool size relate to the number of application tasks?
-- [ ] How can a schema migration support old and new application versions?
-- [ ] Why is a backup different from Multi-AZ availability?
-- [ ] Why does Multi-AZ not protect against a destructive application query?
-- [ ] What do RTO and RPO mean for this project?
-- [ ] Why should an ECS role and a database password be handled differently?
-- [ ] How can a browser upload to S3 without receiving broad bucket access?
+- [x] How can two customers attempt to purchase the last item concurrently?
+- [x] Which transaction strategy prevents overselling, and what is its trade-off?
+- [x] Why can adding ECS tasks exhaust database connections?
+- [x] How should the pool size relate to the number of application tasks?
+- [x] How can a schema migration support old and new application versions?
+- [x] Why is a backup different from Multi-AZ availability?
+- [x] Why does Multi-AZ not protect against a destructive application query?
+- [x] What do RTO and RPO mean for this project?
+- [x] Why should an ECS role and a database password be handled differently?
+- [x] How can a browser upload to S3 without receiving broad bucket access?
 
 ### I should be able to demonstrate
 
-- [ ] Run concurrent purchase attempts and prove inventory remains correct.
-- [ ] Observe connection count while application instances increase.
-- [ ] Find the query plan for a representative order query.
-- [ ] Retrieve a secret through only the intended workload role.
-- [ ] Upload through a presigned operation without public-write access.
-- [ ] Explain and test the chosen backup/restore procedure.
+- [x] Run concurrent purchase attempts and prove inventory remains correct.
+- [x] Observe connection count while application instances increase.
+- [x] Find the query plan for a representative order query.
+- [x] Retrieve a secret through only the intended workload role.
+- [x] Upload through a presigned operation without public-write access.
+- [x] Explain and test the chosen backup/restore procedure.
 
 ### Phase review
 
 ```text
-Confidence (0-4):
-Concurrency result:
-Connection-scaling result:
-RTO/RPO decision:
-Retained data and cost:
-Cleanup status:
+Confidence (0-4): 3 — explain and demonstrate independently; repeat the
+  production trade-off analysis before claiming level 4.
+Concurrency result: Concurrent deployed HTTP orders for quantity one returned
+  exactly 201/409; final inventory was zero. Transaction + deterministic row
+  locks serialized the stock check and update.
+Connection-scaling result: Safe simulation observed 1/2/4 sessions for 1/2/4
+  represented instances. Pool max 5 bounds four API plus two worker tasks at 30
+  connections and reserves headroom.
+RTO/RPO decision: Learning RTO 60 minutes/RPO 5 minutes; private PITR restore
+  became available in about 13.5 minutes and was verified then deleted.
+Retained data and cost: Stopped 20-GiB RDS storage about USD 2.62/month, managed
+  secret about USD 0.40/month, one clean ECR image about USD 0.012/month, and
+  one 29,792-byte private S3 image about USD 0.00000075/month, plus variable
+  backup/request/transfer/tax. RDS review 2026-08-23; full review 2026-08-31.
+Cleanup status: Phase 5 disposable runtime VERIFIED; overall cleanup PARTIAL
+  for intentional retained foundation/data and the separately overdue
+  inactive-root-key review, which Phase 5 did not inspect or modify.
 ```
 
 ## Phase 6 — Asynchronous processing and reliability
@@ -588,7 +599,7 @@ the AWS Console open:
 | 2 — EC2/diagnosis          |                4 | 2026-07-27     | SSM/no SSH, EC2/EBS lifecycle, IAM denial/repair, CloudWatch correlation, timeout/refused/503 diagnosis      | Yes — production private networking and cleaner container log parsing |
 | 3 — Networking             |                  |                |                                                                                                              |                                   |
 | 4 — ECS/deployments        |                2 | 2026-08-06     | Digest-pinned Fargate/ALB deployment, 1-versus-2 task replacement, draining, unhealthy rollout/circuit-breaker rollback, verified runtime cleanup | Yes — task-definition recall, rolling percentages, rollback vs roll-forward, horizontal vs vertical scaling |
-| 5 — Data/storage/secrets   |                  |                |                                                                                                              |                                   |
+| 5 — Data/storage/secrets   |                3 | 2026-08-18     | Private RDS/TLS/secret rotation, pool scaling, row-lock concurrency, query plan, expand/contract, PITR, private presigned S3, real API/UI flow, verified cleanup | Yes — production HA/egress, pool pressure under real replicas, and recovery repetition |
 | 6 — Async reliability      |                  |                |                                                                                                              |                                   |
 | 7 — Events/notifications   |                  |                |                                                                                                              |                                   |
 | 8 — Operations/resilience  |                  |                |                                                                                                              |                                   |

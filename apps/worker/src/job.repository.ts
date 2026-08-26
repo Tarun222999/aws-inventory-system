@@ -4,6 +4,11 @@ import { jobs, orders, type Database } from "@order-platform/database";
 
 export type ClaimedJob = typeof jobs.$inferSelect;
 
+export type SqsJobClaim =
+  | { kind: "claimed"; job: ClaimedJob }
+  | { kind: "already_completed" }
+  | { kind: "not_claimable" };
+
 export async function claimNextJob(
   database: Database,
   workerId: string,
@@ -124,5 +129,59 @@ export async function recordJobFailure(
       .set({ status: terminal ? "failed" : "pending", updatedAt: now })
       .where(eq(orders.id, updated.orderId));
     return terminal ? "failed" : "retry_scheduled";
+  });
+}
+
+export async function claimJobForSqsDelivery(
+  database: Database,
+  jobId: string,
+  workerId: string,
+  leaseTimeoutMs: number,
+  now = new Date(),
+): Promise<SqsJobClaim> {
+  const staleBefore = new Date(now.getTime() - leaseTimeoutMs);
+  return database.transaction(async (transaction) => {
+    const [candidate] = await transaction
+      .select()
+      .from(jobs)
+      .where(eq(jobs.id, jobId))
+      .limit(1)
+      .for("update", { skipLocked: true });
+
+    if (!candidate) return { kind: "not_claimable" };
+
+    if (candidate.status === "completed") {
+      return { kind: "already_completed" };
+    }
+
+    const claimable =
+      (candidate.status === "pending" && candidate.availableAt <= now) ||
+      (candidate.status === "processing" &&
+        candidate.lockedAt !== null &&
+        candidate.lockedAt < staleBefore);
+
+    if (!claimable) return { kind: "not_claimable" };
+
+    const [claimed] = await transaction
+      .update(jobs)
+      .set({
+        status: "processing",
+        attempts: sql`${jobs.attempts} + 1`,
+        lockedAt: now,
+        lockedBy: workerId,
+        lastError: null,
+        updatedAt: now,
+      })
+      .where(eq(jobs.id, candidate.id))
+      .returning();
+
+    if (!claimed) return { kind: "not_claimable" };
+
+    await transaction
+      .update(orders)
+      .set({ status: "processing", updatedAt: now })
+      .where(eq(orders.id, claimed.orderId));
+
+    return { kind: "claimed", job: claimed };
   });
 }

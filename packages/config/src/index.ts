@@ -83,6 +83,29 @@ const workerEnvironmentSchema = sharedEnvironmentSchema.extend({
     .default(250),
 });
 
+const outboxPublisherEnvironmentSchema = sharedEnvironmentSchema.extend({
+  AWS_REGION: z.string().min(1).default("ap-south-1"),
+  ORDER_PROCESSING_QUEUE_URL: z.string().url(),
+  OUTBOX_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(60_000)
+    .default(1_000),
+  OUTBOX_LEASE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(3_600_000)
+    .default(30_000),
+  OUTBOX_RETRY_DELAY_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(60_000)
+    .default(1_000),
+});
+
 function formatConfigurationError(error: z.ZodError): Error {
   const details = error.issues
     .map(
@@ -105,6 +128,18 @@ export function loadApiConfig(environment: NodeJS.ProcessEnv = process.env) {
 
 export function loadWorkerConfig(environment: NodeJS.ProcessEnv = process.env) {
   const result = workerEnvironmentSchema.safeParse(environment);
+
+  if (!result.success) {
+    throw formatConfigurationError(result.error);
+  }
+
+  return result.data;
+}
+
+export function loadOutboxPublisherConfig(
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  const result = outboxPublisherEnvironmentSchema.safeParse(environment);
 
   if (!result.success) {
     throw formatConfigurationError(result.error);

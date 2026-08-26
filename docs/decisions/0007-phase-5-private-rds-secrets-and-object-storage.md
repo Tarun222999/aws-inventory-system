@@ -2,8 +2,8 @@
 
 ## Status
 
-Proposed on 2026-08-07. Accept only after the Phase 5 manual exercises,
-recovery evidence, cost review, and cleanup verification.
+Accepted on 2026-08-18 after the Phase 5 manual exercises, recovery evidence,
+cost review, and cleanup verification.
 
 ## Context
 
@@ -18,7 +18,7 @@ compatible migrations, backup/recovery, encryption, least-privilege secret
 access, private object storage, and credential rotation without introducing
 Phase 6 messaging or later edge/notification services.
 
-## Proposed decision
+## Decision
 
 - Use RDS for PostgreSQL 16 in Mumbai rather than self-managed PostgreSQL or
   DynamoDB. Use a small Single-AZ `db.t4g.micro` with 20 GiB encrypted gp3 for
@@ -51,7 +51,9 @@ Phase 6 messaging or later edge/notification services.
   RTO/RPO before selecting retention and restore evidence.
 - Use a private S3 bucket with Block Public Access, bucket-owner-enforced object
   ownership, default SSE-S3, scoped product-image prefixes, short-lived
-  presigned operations, and lifecycle cleanup for incomplete multipart uploads.
+  presigned operations, and explicit incomplete-upload verification for the
+  bounded single-PUT lab. Add abort-incomplete-multipart lifecycle cleanup
+  before a later phase enables multipart uploads.
 - Avoid NAT, paid interface endpoints, ALB, and persistent Fargate runtime
   unless a later exercise proves each is necessary and separately approves its
   current price, lifetime, cap, cleanup, and verification plan.
@@ -98,7 +100,7 @@ this avoids NAT and endpoint hourly charges for a short lab.
 
 ## Cost impact
 
-The proposed database is USD 0.021 per running hour plus USD 0.131/GB-month for
+The database is USD 0.021 per running hour plus USD 0.131/GB-month for
 20 GiB gp3. Additional RDS backup storage is USD 0.095/GB-month. Secrets Manager
 is USD 0.40/secret-month plus API calls. S3 Standard is USD 0.025/GB-month for
 the first 50 TB plus request/transfer dimensions. Temporary Fargate/public-IP,
@@ -151,3 +153,49 @@ tags, review dates, and end-of-session re-verification.
 - A presigned upload succeeds while bucket public writes remain blocked.
 - Disposable runtime cleanup and retained-resource review are verified and
   recorded separately from overall account cleanup.
+
+## Acceptance evidence
+
+- Concurrent HTTP purchases for the last unit produced exactly one 201 and one
+  409 response; final inventory was zero. The transaction uses deterministic
+  `SELECT FOR UPDATE` locking, a post-lock stock check, and a non-negative
+  database constraint.
+- Safe connection simulations observed one, two, and four sessions as the
+  represented application instance count increased. A pool maximum of five
+  bounds four API plus two worker tasks at 30 application connections, leaving
+  headroom for deployments, migrations, administration, and recovery.
+- A representative parameterized SKU lookup used the existing unique index, so
+  no speculative additional index was added.
+- The expand/backfill/dual-read-and-write/contract migration lab kept old and
+  new application versions compatible until the deliberate contract step; the
+  old reader then failed as expected, proving contraction must follow task
+  replacement and rollback-window closure.
+- The learning recovery objective is RTO 60 minutes and RPO 5 minutes. A private
+  PITR target became available in about 13.5 minutes, passed TLS/schema/workload
+  verification, and was deleted without retaining another database or snapshot.
+  Multi-AZ remains an availability choice, not recovery from destructive SQL.
+- The ECS workload role retrieved only the intended managed secret. TLS 1.3 and
+  forced non-TLS denial were demonstrated. Managed rotation invalidated the old
+  credential for new sessions, and a fresh `AWSCURRENT` retrieval reconnected
+  without exposing secret material.
+- A private S3 proof denied unsigned PUT/GET, accepted a checksum/type/
+  `If-None-Match`-bound signed upload, rejected overwrite replay, and served a
+  signed download. The real local UI completed upload, confirmation, download,
+  and rendering without public bucket access.
+- A dedicated migration task acquired a PostgreSQL advisory lock, applied only
+  pending migrations over verified TLS, checked the migration journal, and
+  exited before application deployment.
+- The real API reached healthy target state behind a temporary ALB and returned
+  200 from database-backed `/ready`. Controlled wrong-security-group and
+  loopback-bind failures were diagnosed and cleaned before the successful
+  revision.
+- Final audit found zero ECS services/tasks, ALBs/listeners/target groups,
+  public ENIs/IPv4s, NAT Gateways, Elastic IPs, VPC endpoints, temporary CORS,
+  incomplete multipart uploads, or Phase 5 log groups. RDS is stopped and
+  private. Exactly one clean ECR image and one private product image remain for
+  Phase 8 with costs and review dates recorded.
+
+The decision is accepted for the learning architecture, not as an assertion
+that Single-AZ, public-subnet task egress, manual target registration, or
+SSE-S3 alone is the final production design. Those trade-offs are revisited in
+Phase 8 and recreated declaratively in Phase 9.
