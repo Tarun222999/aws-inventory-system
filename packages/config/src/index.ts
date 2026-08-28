@@ -106,6 +106,17 @@ const outboxPublisherEnvironmentSchema = sharedEnvironmentSchema.extend({
     .default(1_000),
 });
 
+const sqsWorkerEnvironmentSchema = workerEnvironmentSchema.extend({
+  AWS_REGION: z.string().min(1).default("ap-south-1"),
+  ORDER_PROCESSING_QUEUE_URL: z.string().url(),
+  SQS_RECEIVE_WAIT_TIME_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(20)
+    .default(20),
+});
+
 function formatConfigurationError(error: z.ZodError): Error {
   const details = error.issues
     .map(
@@ -140,6 +151,18 @@ export function loadOutboxPublisherConfig(
   environment: NodeJS.ProcessEnv = process.env,
 ) {
   const result = outboxPublisherEnvironmentSchema.safeParse(environment);
+
+  if (!result.success) {
+    throw formatConfigurationError(result.error);
+  }
+
+  return result.data;
+}
+
+export function loadSqsWorkerConfig(
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  const result = sqsWorkerEnvironmentSchema.safeParse(environment);
 
   if (!result.success) {
     throw formatConfigurationError(result.error);

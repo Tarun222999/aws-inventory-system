@@ -9,7 +9,9 @@
     "start": "tsx --env-file-if-exists=../../.env src/main.ts",
     "test": "tsx --test src/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "outbox:publish": "tsx --env-file-if-exists=../../.env src/outbox-main.ts"
+    "outbox:publish": "tsx --env-file-if-exists=../../.env src/outbox-main.ts",
+    "sqs:worker": "tsx --env-file-if-exists=../../.env src/sqs-worker-main.ts",
+    "phase6:lab": "tsx --env-file-if-exists=../../.env src/phase6-lab.ts"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.1118.0",

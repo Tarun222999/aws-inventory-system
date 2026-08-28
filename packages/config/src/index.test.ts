@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   loadApiConfig,
   loadOutboxPublisherConfig,
+  loadSqsWorkerConfig,
   loadWorkerConfig,
   resolveDatabaseEnvironment,
   resolveDatabaseSecretSnapshot,
@@ -55,6 +56,27 @@ void test("requires an SQS destination for the outbox publisher", () => {
   assert.equal(config.OUTBOX_RETRY_DELAY_MS, 1_000);
 
   assert.throws(() => loadOutboxPublisherConfig({ DATABASE_URL: databaseUrl }));
+});
+
+void test("bounds SQS long polling for the SQS worker", () => {
+  const environment = {
+    DATABASE_URL: databaseUrl,
+    ORDER_PROCESSING_QUEUE_URL:
+      "https://sqs.ap-south-1.amazonaws.com/123456789012/order-processing",
+  };
+
+  assert.equal(
+    loadSqsWorkerConfig(environment).SQS_RECEIVE_WAIT_TIME_SECONDS,
+    20,
+  );
+  for (const value of ["0", "21"]) {
+    assert.throws(() =>
+      loadSqsWorkerConfig({
+        ...environment,
+        SQS_RECEIVE_WAIT_TIME_SECONDS: value,
+      }),
+    );
+  }
 });
 
 void test("keeps an explicit local database URL without loading a secret", async () => {
