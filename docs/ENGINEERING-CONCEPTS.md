@@ -361,6 +361,9 @@ Cleanup status: Phase 5 disposable runtime VERIFIED; overall cleanup PARTIAL
 - Message ordering
 - Transactional outbox pattern
 - Failure after side effect but before acknowledgement
+- Lambda invocation-driven execution versus a continuously running ECS worker
+- SQS event source mappings, batches, partial batch failures, and concurrency limits
+- Lambda execution roles, function timeout/memory, stateless environments, and cold/warm reuse
 
 ### I should be able to answer
 
@@ -373,6 +376,10 @@ Cleanup status: Phase 5 disposable runtime VERIFIED; overall cleanup PARTIAL
 - [ ] What does growing queue age tell an operator?
 - [ ] When does message ordering matter for inventory?
 - [ ] What database/message inconsistency does an outbox address?
+- [ ] Who polls an SQS queue when Lambda is the consumer, and what invokes the handler?
+- [ ] Why must the Lambda timeout be materially shorter than the SQS visibility timeout?
+- [ ] Why does ReportBatchItemFailures avoid retrying successful records in a failed batch?
+- [ ] Why is the SQS redrive policy—not a Lambda asynchronous-invocation DLQ—responsible for this queue's poison messages?
 
 ### I should be able to demonstrate
 
@@ -381,6 +388,9 @@ Cleanup status: Phase 5 disposable runtime VERIFIED; overall cleanup PARTIAL
 - [ ] Diagnose and correct an intentionally short visibility timeout.
 - [ ] Send a poison message to the DLQ and safely redrive it.
 - [ ] Observe backpressure through queue metrics.
+- [ ] Process a synthetic SQS batch with Lambda and correlate queue and Lambda evidence.
+- [ ] Return one partial batch failure, diagnose a poison message in the SQS DLQ, correct the handler, and safely redrive it.
+- [ ] Remove the Lambda mapping, function, role, and lesson log group; verify no message remains retrying.
 
 ### Phase review
 
@@ -600,7 +610,7 @@ the AWS Console open:
 | 3 — Networking             |                  |                |                                                                                                              |                                   |
 | 4 — ECS/deployments        |                2 | 2026-08-06     | Digest-pinned Fargate/ALB deployment, 1-versus-2 task replacement, draining, unhealthy rollout/circuit-breaker rollback, verified runtime cleanup | Yes — task-definition recall, rolling percentages, rollback vs roll-forward, horizontal vs vertical scaling |
 | 5 — Data/storage/secrets   |                3 | 2026-08-18     | Private RDS/TLS/secret rotation, pool scaling, row-lock concurrency, query plan, expand/contract, PITR, private presigned S3, real API/UI flow, verified cleanup | Yes — production HA/egress, pool pressure under real replicas, and recovery repetition |
-| 6 — Async reliability      |                  |                |                                                                                                              |                                   |
+| 6 — Async reliability      |                3 | 2026-09-04     | Real API/outbox/SQS/ECS-worker flow; duplicate/DLQ/redrive labs; Lambda partial-batch/DLQ/redrive lab; workbook review; verified runtime cleanup | Yes — repeat the controlled ECS crash-after-commit-before-ack drill |
 | 7 — Events/notifications   |                  |                |                                                                                                              |                                   |
 | 8 — Operations/resilience  |                  |                |                                                                                                              |                                   |
 | 9 — Terraform/drift        |                  |                |                                                                                                              |                                   |
