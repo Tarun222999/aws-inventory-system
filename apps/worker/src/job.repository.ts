@@ -1,6 +1,19 @@
 import { and, asc, eq, lt, lte, or, sql } from "drizzle-orm";
 
-import { jobs, orders, type Database } from "@order-platform/database";
+import {
+  jobs,
+  orders,
+  outboxMessages,
+  type Database,
+} from "@order-platform/database";
+
+import {
+  ORDER_CONFIRMED_DETAIL_TYPE,
+  ORDER_CONFIRMED_SCHEMA_VERSION,
+  orderConfirmedDetailV1Schema,
+} from "@order-platform/events";
+
+import { randomUUID } from "node:crypto";
 
 export type ClaimedJob = typeof jobs.$inferSelect;
 
@@ -81,10 +94,58 @@ export async function completeJob(
       .returning({ orderId: jobs.orderId });
 
     if (!completed) return false;
-    await transaction
+    const [order] = await transaction
       .update(orders)
       .set({ status: "ready_to_ship", updatedAt: now })
-      .where(eq(orders.id, completed.orderId));
+      .where(eq(orders.id, completed.orderId))
+      .returning({
+        id: orders.id,
+        totalPaise: orders.totalPaise,
+      });
+
+    if (!order) {
+      throw new Error(`Order ${completed.orderId} was not found`);
+    }
+
+    const [commandMessage] = await transaction
+      .select({ id: outboxMessages.id })
+      .from(outboxMessages)
+      .where(
+        and(
+          eq(outboxMessages.jobId, jobId),
+          eq(outboxMessages.messageType, "fulfill_order"),
+        ),
+      )
+      .limit(1);
+
+    if (!commandMessage) {
+      throw new Error(
+        `The fulfill_order message for job ${jobId} was not found`,
+      );
+    }
+    const event = orderConfirmedDetailV1Schema.parse({
+      schemaVersion: ORDER_CONFIRMED_SCHEMA_VERSION,
+      eventId: randomUUID(),
+      correlationId: order.id,
+      causationId: commandMessage.id,
+      occurredAt: now.toISOString(),
+      order: {
+        id: order.id,
+        totalPaise: order.totalPaise,
+        currency: "INR",
+      },
+    });
+
+    await transaction.insert(outboxMessages).values({
+      id: event.eventId,
+      jobId,
+      orderId: order.id,
+      messageType: ORDER_CONFIRMED_DETAIL_TYPE,
+      payload: event,
+      availableAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
     return true;
   });
 }

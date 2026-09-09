@@ -104,6 +104,11 @@ const outboxPublisherEnvironmentSchema = sharedEnvironmentSchema.extend({
     .min(0)
     .max(60_000)
     .default(1_000),
+  ORDER_EVENT_BUS_NAME: z
+    .string()
+    .min(1)
+    .max(256)
+    .regex(/^[A-Za-z0-9._-]+$/),
 });
 
 const sqsWorkerEnvironmentSchema = workerEnvironmentSchema.extend({

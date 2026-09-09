@@ -13,6 +13,8 @@ import {
   releaseOutboxForRetry,
 } from "./outbox.repository.js";
 import { createSqsOutboxPublisher } from "./sqs-outbox-publisher.js";
+import { createEventBridgeOutboxPublisher } from "./eventbridge-outbox-publisher.js";
+import { createOutboxMessageRouter } from "./outbox-message-router.js";
 
 const config = loadOutboxPublisherConfig(await resolveDatabaseEnvironment());
 const logger = createLogger("outbox-publisher");
@@ -33,6 +35,17 @@ const sqsPublisher = createSqsOutboxPublisher({
   queueUrl: config.ORDER_PROCESSING_QUEUE_URL,
   region: config.AWS_REGION,
 });
+
+const eventBridgePublisher = createEventBridgeOutboxPublisher({
+  eventBusName: config.ORDER_EVENT_BUS_NAME,
+  region: config.AWS_REGION,
+});
+
+const publisher = createOutboxMessageRouter({
+  sqsPublisher,
+  eventBridgePublisher,
+});
+
 const shutdownController = new AbortController();
 
 function wait(milliseconds: number, signal: AbortSignal): Promise<void> {
@@ -88,7 +101,7 @@ async function runPublisher(signal: AbortSignal) {
       });
 
       try {
-        await sqsPublisher.publish(outboxMessage);
+        await publisher.publish(outboxMessage);
 
         const published = await markOutboxPublished(
           database,

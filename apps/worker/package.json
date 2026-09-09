@@ -7,16 +7,18 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
     "start": "tsx --env-file-if-exists=../../.env src/main.ts",
-    "test": "tsx --test src/*.test.ts",
+    "test": "tsx --test --test-concurrency=1 src/*.test.ts",
     "typecheck": "tsc --noEmit",
     "outbox:publish": "tsx --env-file-if-exists=../../.env src/outbox-main.ts",
     "sqs:worker": "tsx --env-file-if-exists=../../.env src/sqs-worker-main.ts",
     "phase6:lab": "tsx --env-file-if-exists=../../.env src/phase6-lab.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-eventbridge": "^3.1118.0",
     "@aws-sdk/client-sqs": "^3.1118.0",
     "@order-platform/config": "0.1.0",
     "@order-platform/database": "0.1.0",
+    "@order-platform/events": "0.1.0",
     "@order-platform/logger": "0.1.0",
     "drizzle-orm": "0.45.2"
   }

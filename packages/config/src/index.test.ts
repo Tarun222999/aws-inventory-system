@@ -44,18 +44,35 @@ void test("rejects unsafe database pool limits", () => {
   }
 });
 
-void test("requires an SQS destination for the outbox publisher", () => {
+void test("requires SQS and EventBridge destinations for the outbox publisher", () => {
   const config = loadOutboxPublisherConfig({
     DATABASE_URL: databaseUrl,
     ORDER_PROCESSING_QUEUE_URL:
       "https://sqs.ap-south-1.amazonaws.com/123456789012/order-processing",
+    ORDER_EVENT_BUS_NAME: "order-platform-phase7",
   });
   assert.equal(config.AWS_REGION, "ap-south-1");
   assert.equal(config.OUTBOX_POLL_INTERVAL_MS, 1_000);
   assert.equal(config.OUTBOX_LEASE_TIMEOUT_MS, 30_000);
   assert.equal(config.OUTBOX_RETRY_DELAY_MS, 1_000);
+  assert.equal(config.ORDER_EVENT_BUS_NAME, "order-platform-phase7");
 
   assert.throws(() => loadOutboxPublisherConfig({ DATABASE_URL: databaseUrl }));
+
+  assert.throws(() =>
+    loadOutboxPublisherConfig({
+      DATABASE_URL: databaseUrl,
+      ORDER_EVENT_BUS_NAME: "order-platform-phase7",
+    }),
+  );
+
+  assert.throws(() =>
+    loadOutboxPublisherConfig({
+      DATABASE_URL: databaseUrl,
+      ORDER_PROCESSING_QUEUE_URL:
+        "https://sqs.ap-south-1.amazonaws.com/123456789012/order-processing",
+    }),
+  );
 });
 
 void test("bounds SQS long polling for the SQS worker", () => {

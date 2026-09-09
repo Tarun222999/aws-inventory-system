@@ -34,23 +34,25 @@ function createDependencies(claim: SqsJobClaim = { kind: "claimed", job }) {
     maximumAttempts: 3,
     retryDelayMs: 1_000,
     processingDelayMs: 0,
-    claimJob: async () => {
+    claimJob: () => {
       calls.push("claim");
-      return claim;
+      return Promise.resolve(claim);
     },
-    completeJob: async () => {
+    completeJob: () => {
       calls.push("complete");
-      return true;
+      return Promise.resolve(true);
     },
-    recordFailure: async () => {
+    recordFailure: () => {
       calls.push("record_failure");
-      return "retry_scheduled";
+      return Promise.resolve("retry_scheduled");
     },
-    processJob: async () => {
+    processJob: () => {
       calls.push("process");
+      return Promise.resolve();
     },
-    acknowledge: async () => {
+    acknowledge: () => {
       calls.push("acknowledge");
+      return Promise.resolve();
     },
     log: {
       info: () => undefined,
@@ -80,9 +82,9 @@ void test("acknowledges a completed duplicate without processing it again", asyn
 
 void test("leaves a processing failure unacknowledged for SQS retry", async () => {
   const { calls, dependencies } = createDependencies();
-  dependencies.processJob = async () => {
+  dependencies.processJob = () => {
     calls.push("process");
-    throw new Error("simulated failure");
+    return Promise.reject(new Error("simulated failure"));
   };
 
   await handleSqsJobDelivery(message, dependencies);

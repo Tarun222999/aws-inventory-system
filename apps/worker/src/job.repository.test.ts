@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import { createDatabase, jobs, orders } from "@order-platform/database";
+import {
+  createDatabase,
+  jobs,
+  orders,
+  outboxMessages,
+} from "@order-platform/database";
 
 import {
   claimJobForSqsDelivery,
@@ -11,6 +16,11 @@ import {
   completeJob,
   recordJobFailure,
 } from "./job.repository.js";
+
+import {
+  ORDER_CONFIRMED_DETAIL_TYPE,
+  orderConfirmedDetailV1Schema,
+} from "@order-platform/events";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl)
@@ -43,7 +53,22 @@ async function createTestJob(
       })
       .returning();
     assert.ok(job);
-    return { order, job };
+
+    const [commandMessage] = await transaction
+      .insert(outboxMessages)
+      .values({
+        jobId: job.id,
+        orderId: order.id,
+        messageType: "fulfill_order",
+        payload: {
+          jobId: job.id,
+          orderId: order.id,
+        },
+      })
+      .returning();
+
+    assert.ok(commandMessage);
+    return { order, job, commandMessage };
   });
 }
 
@@ -217,6 +242,121 @@ void test("does not claim an SQS delivery while another worker holds a fresh lea
       30_000,
     );
     assert.equal(result.kind, "not_claimable");
+  } finally {
+    await cleanupOrder(fixture.order.id);
+  }
+});
+
+void test("completing a job records one OrderConfirmed event", async () => {
+  const fixture = await createTestJob();
+  const claimedAt = new Date(fixture.job.createdAt.getTime() + 1_000);
+  const completedAt = new Date(fixture.job.createdAt.getTime() + 2_000);
+
+  try {
+    const claim = await claimJobForSqsDelivery(
+      connection.database,
+      fixture.job.id,
+      "event-worker",
+      30_000,
+      claimedAt,
+    );
+    assert.equal(claim.kind, "claimed");
+
+    assert.equal(
+      await completeJob(
+        connection.database,
+        fixture.job.id,
+        "event-worker",
+        completedAt,
+      ),
+      true,
+    );
+
+    const confirmedMessages = await connection.database
+      .select()
+      .from(outboxMessages)
+      .where(
+        and(
+          eq(outboxMessages.orderId, fixture.order.id),
+          eq(outboxMessages.messageType, ORDER_CONFIRMED_DETAIL_TYPE),
+        ),
+      );
+
+    assert.equal(confirmedMessages.length, 1);
+
+    const message = confirmedMessages[0];
+    assert.ok(message);
+    assert.equal(message.status, "pending");
+
+    const event = orderConfirmedDetailV1Schema.parse(message.payload);
+
+    assert.equal(event.eventId, message.id);
+    assert.equal(event.correlationId, fixture.order.id);
+    assert.equal(event.causationId, fixture.commandMessage.id);
+    assert.equal(event.occurredAt, completedAt.toISOString());
+    assert.deepEqual(event.order, {
+      id: fixture.order.id,
+      totalPaise: fixture.order.totalPaise,
+      currency: "INR",
+    });
+  } finally {
+    await cleanupOrder(fixture.order.id);
+  }
+});
+
+void test("rolls back completion when the causal command is missing", async () => {
+  const fixture = await createTestJob();
+  const claimedAt = new Date(fixture.job.createdAt.getTime() + 1_000);
+  const completedAt = new Date(fixture.job.createdAt.getTime() + 2_000);
+
+  try {
+    const claim = await claimJobForSqsDelivery(
+      connection.database,
+      fixture.job.id,
+      "rollback-worker",
+      30_000,
+      claimedAt,
+    );
+    assert.equal(claim.kind, "claimed");
+
+    await connection.database
+      .delete(outboxMessages)
+      .where(eq(outboxMessages.id, fixture.commandMessage.id));
+
+    await assert.rejects(
+      completeJob(
+        connection.database,
+        fixture.job.id,
+        "rollback-worker",
+        completedAt,
+      ),
+      /fulfill_order message/,
+    );
+
+    const [job] = await connection.database
+      .select()
+      .from(jobs)
+      .where(eq(jobs.id, fixture.job.id));
+
+    const [order] = await connection.database
+      .select()
+      .from(orders)
+      .where(eq(orders.id, fixture.order.id));
+
+    const confirmedMessages = await connection.database
+      .select()
+      .from(outboxMessages)
+      .where(
+        and(
+          eq(outboxMessages.jobId, fixture.job.id),
+          eq(outboxMessages.messageType, ORDER_CONFIRMED_DETAIL_TYPE),
+        ),
+      );
+
+    assert.equal(job?.status, "processing");
+    assert.equal(job?.lockedBy, "rollback-worker");
+    assert.equal(order?.status, "processing");
+    assert.equal(confirmedMessages.length, 0);
   } finally {
     await cleanupOrder(fixture.order.id);
   }
