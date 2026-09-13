@@ -130,6 +130,19 @@ exist for only a few minutes.
 | Phase 5 presigned-S3 proof runtime                     | Revision 10 provided a safely cleaned controlled failure that exposed malformed anonymous-request construction. Corrected revision 12 reused the final clean image and S3-only configuration; its single task exited 0 after proving unsigned PUT 403, signed PUT 200, overwrite replay 412, unsigned GET 403, signed GET 200 with matching downloaded bytes/type, private-bucket status, no URL/key logging, and exact-object deletion | `ap-south-1` | Corrected task ran below the ten-minute cap at about USD 0.0129675/task-hour plus USD 0.005/public-IPv4-hour, before tiny S3/log request usage | Verified task stopped, public ENI absent, exact proof object deleted, zero incomplete multipart uploads, sanitized evidence recorded, and proof log group deleted; the later retained UI object is documented separately | CORRECTED PROOF VERIFIED — RUNTIME CLEANUP VERIFIED |
 | Phase 5 final API/ALB application runtime              | Temporary HTTP ALB/listener/IP target group plus one revision-15 standalone task proved `/health`, database-backed `/ready`, real product create/list, browser presigned upload/confirm/download/image rendering, and concurrent last-item `201`/`409` with final inventory zero | `ap-south-1`; retained public A/B plus task in public A | Final approved cap USD 0.20; deletion crossed slightly beyond the target time and delayed second-hour ALB/public-IPv4/LCU usage may appear | Task stopped and ENI/public IPv4 absent; target deregistered; listener, ALB, both managed ENIs/public IPv4s, and target group deleted; API log and temporary CORS deleted; RDS stopped | DELETED/STOPPED — RUNTIME CLEANUP VERIFIED |
 | Phase 6 Standard source queue and DLQ                  | `order-platform-phase6-order-processing` and `order-platform-phase6-order-processing-dlq`; source has 20-second long polling, 60-second visibility, one-day retention, SSE-SQS, and redrive after three receives; DLQ has 30-second visibility and four-day retention | `ap-south-1` | No idle queue fee; Standard SQS requests are usage-billed, with the first one million monthly requests in the SQS Free Tier; same-Region transfer is not charged. SSE-SQS does not use a customer-managed KMS key | Retain through Phase 6; re-verify message counts at every session close and review/delete both queues by 2026-08-31 or the Phase 8/9 boundary | RETAINED — JUSTIFIED; EMPTY RE-VERIFIED |
+| Phase 7 custom EventBridge bus                         | `order-platform-phase7-lab`; custom application event bus created manually by the user for the EventBridge/SNS/SQS routing lab | `ap-south-1` | No residual charge after verified deletion; test event ingestion may appear as delayed usage | Deleted after the lab; exact bus absence verified by fresh regional inventory | DELETED — VERIFIED |
+| Phase 7 SNS operations topic                           | `order-platform-phase7-ops-lab` (Standard); created manually by the user as the EventBridge rule target and fan-out boundary | `ap-south-1` | No residual charge after verified deletion; publish/delivery requests may appear as delayed usage | Exact topic absence verified by fresh regional inventory | DELETED — VERIFIED |
+| Phase 7 SQS observer queue                             | `order-platform-phase7-ops-observer-lab` (Standard, SSE-SQS, one-day retention, 20-second long polling); created manually by the user to inspect SNS deliveries | `ap-south-1` | No residual charge after verified deletion; test polling requests may appear as delayed usage | Queue and its lingering test message deleted; exact queue absence verified | DELETED — VERIFIED |
+| Phase 7 SNS-to-SQS subscription                        | Standard SNS subscription from `order-platform-phase7-ops-lab` to `order-platform-phase7-ops-observer-lab`; created manually by the user | `ap-south-1` | No residual charge after verified deletion; prior delivery usage may appear later | Exact subscription absence verified by fresh regional inventory | DELETED — VERIFIED |
+| Phase 7 EventBridge routing rule                       | `order-platform-phase7-order-confirmed-lab` on `order-platform-phase7-lab`; enabled rule matching source `com.order-platform.orders` and detail type `OrderConfirmed`, targeting the Phase 7 SNS topic | `ap-south-1` | No residual charge after target removal and verified rule/bus deletion | Target removed, rule deleted, and Phase 7 rule prefix verified absent from the default bus | DELETED — VERIFIED |
+| Phase 7 real-publisher integration bus                 | `order-platform-phase7-integration-lab`; custom bus created manually by the user for the real local outbox-publisher proof | `ap-south-1` | No residual charge after verified deletion; custom-event ingestion may appear as delayed usage | Deleted after successful proof; exact bus absence verified | DELETED — VERIFIED |
+| Phase 7 real-publisher observer queue                  | `order-platform-phase7-event-observer-lab`; temporary Standard SSE-SQS queue created manually by the user for direct EventBridge delivery evidence | `ap-south-1` | No residual charge after verified deletion; SQS requests may appear as delayed usage | Queue and its one observed event deleted; exact absence verified | DELETED — VERIFIED |
+| Phase 7 real-publisher integration rule                | `order-platform-phase7-order-confirmed-integration` on `order-platform-phase7-integration-lab`; enabled exact `OrderConfirmed` rule with one direct SQS target and source-rule/source-account-scoped queue policy | `ap-south-1` | No residual charge after target removal and verified rule/bus deletion | Target removed, rule deleted, and exact Phase 7 rule prefix verified absent on the default bus | DELETED — VERIFIED |
+| Phase 7 operational-notification bus                  | `order-platform-phase7-notifications-lab`; temporary custom bus used for the real-email SNS proof | `ap-south-1` | No residual charge after verified deletion; one custom-event ingestion may appear as delayed usage | Deleted after the proof and exact absence verified | DELETED — VERIFIED |
+| Phase 7 operational-notification rule                 | `order-platform-phase7-order-confirmed-operations`; exact `OrderConfirmed` filter with one SNS target, sanitized input transformer, zero target retries/no DLQ, and SNS permission scoped to the exact rule ARN | `ap-south-1` | No residual charge after target removal and verified rule/bus deletion | Target removed first; rule then deleted; exact bus/rule absence verified | DELETED — VERIFIED |
+| Phase 7 operational SNS topic and email subscription  | `order-platform-phase7-operations-lab` Standard topic plus one confirmed email subscription; address intentionally omitted | `ap-south-1` | No residual charge after verified deletion; one email delivery may appear as delayed usage | Topic and its subscription deleted; both exact topic variants verified absent | DELETED — VERIFIED |
+| Phase 7 accidental FIFO SNS topic                    | `order-platform-phase7-operations-lab.fifo`; created during manual topic-type selection, with no subscription or message | `ap-south-1` | No residual charge after verified deletion; no delivery occurred | Deleted during emergency stop and exact absence verified | DELETED — VERIFIED |
+| Phase 7 SES transactional-email identity             | One verified and tagged sandbox email-address identity used as both sender and recipient; exact address intentionally omitted; one approved transactional test email sent | `ap-south-1` | No idle identity charge; one outbound message is usage-billed | Delete after completing the SES evidence review and verify zero identities | RUNNING — REQUIRED |
 
 Allowed status values:
 
@@ -760,3 +773,145 @@ Cleanup conclusion: Phase 5 disposable runtime is VERIFIED clean. Overall cleanu
   deferred as a future confidence-raising revisit, and is not claimed as
   demonstrated. No AWS resource was started, created, modified, or deployed
   for this close-out.
+
+## Phase 7 local event-publishing checkpoint — 2026-09-09
+
+- Local implementation and verification: added the versioned `OrderConfirmed`
+  contract, transactional event-outbox write and rollback evidence, isolated
+  EventBridge publisher with partial-failure handling, message-type routing,
+  and required publisher configuration. The repository test suite, TypeScript
+  checks, lint, formatting, and Git whitespace check all pass. No EventBridge,
+  SNS, SES, Scheduler, Lambda, IAM, ECS, or other Phase 7 AWS resource was
+  created or modified, and the outbox publisher was not started against AWS.
+- RDS exception and cost: the retained private Single-AZ PostgreSQL
+  `db.t4g.micro` instance was restarted by the user during local verification
+  and was not needed by the Phase 7 AWS path. Running instance time is billable
+  at the previously recorded approximate Mumbai rate of USD 0.021/hour, with
+  delayed billing possible; the short window is expected to remain below about
+  USD 0.02. The retained 20-GiB storage, backups, and managed secret continue
+  to incur their previously documented residual costs while compute is stopped.
+- Cleanup verification: the stop completed at approximately 2026-09-09 20:19
+  IST. A direct `DescribeDBInstances` check returned `stopped`; its next
+  automatic restart is 2026-09-16 20:19 IST. Review/start-stop/delete it no
+  later than 2026-09-15. RDS compute cleanup is VERIFIED. Overall cleanup
+  remains PARTIAL because the documented retained foundation, database
+  storage/backups/secret, ECR images, private S3 data, and empty Phase 6 queues
+  remain intentionally retained for later phases.
+
+## Phase 7 EventBridge/SNS/SQS routing-lab close-out — 2026-09-09
+
+```text
+Date: 2026-09-09
+Lesson/phase: Phase 7 — EventBridge content routing, SNS delivery envelopes, raw delivery, and SQS observation
+Resources created manually by the user: Custom EventBridge bus order-platform-phase7-lab; enabled OrderConfirmed rule with one SNS target; Standard SNS topic; Standard SSE-SQS observer queue; confirmed SNS-to-SQS subscription and scoped resource policies
+Evidence: One OrderConfirmed event matched and reached SQS through EventBridge and SNS. Delivery was inspected first with the SNS notification envelope and then with RawMessageDelivery enabled, where the EventBridge envelope became the direct SQS body. An OrderCancelled event was accepted by the bus but did not reach the queue because it did not match the OrderConfirmed rule. Repeated receipt of the undeleted OrderConfirmed message demonstrated SQS visibility timeout and at-least-once redelivery behavior.
+Resources stopped: None; this lab created no compute, database, schedule, Lambda, load balancer, NAT Gateway, endpoint, or public IPv4 runtime
+Resources deleted: EventBridge target removed; EventBridge rule deleted; SNS-to-SQS subscription deleted; SNS topic deleted; SQS queue and its remaining test message deleted; custom event bus deleted
+Resources intentionally retained from this lab: None
+Expected Phase 7 lab residual cost: USD 0 active or storage residual; only tiny delayed request/event/delivery usage, expected below the approved USD 0.01 pre-tax cap
+Current billing signal: The same-session preflight budget signal was USD 0.975 actual and USD 3.361 forecast against the USD 5 monthly warning budget; billing is delayed and is not cleanup evidence
+Verification: Exact custom bus, SNS topic, SNS subscription, and SQS queue are absent in ap-south-1; no Phase 7-prefixed rule exists on the default bus. The retained Phase 5 RDS instance remains stopped.
+Phase 7 lab cleanup status: VERIFIED
+Overall account cleanup status: PARTIAL — previously documented retained foundation, stopped RDS storage/backups/managed secret, ECR/S3 data, and empty Phase 6 queues remain intentionally retained and were not created by this lab
+Unresolved Phase 7 lab items: None
+```
+
+## Phase 7 real-publisher integration gate — 2026-09-11
+
+```text
+Status: APPROVED by the user on 2026-09-11; no integration-lab AWS resource had been created at this checkpoint
+Identity and Region: Expected aws-learning Identity Center caller and Mumbai ap-south-1 verified; account identifier omitted
+Fresh baseline: Existing Phase 6 source queue and DLQ each report zero visible, in-flight, and delayed messages. Retained Phase 5 RDS is stopped with automatic restart scheduled for 2026-09-16 20:19 IST. No Phase 7-prefixed EventBridge bus, SNS topic, or SQS queue exists. Docker Desktop was initially stopped and the user then started it.
+Purpose: Prove that the real local API/worker/outbox-publisher flow emits its application-generated OrderConfirmed event through EventBridge, with a direct EventBridge-to-SQS observer target, and inspect the event/correlation/causation fields.
+Approved temporary AWS resources: Custom bus order-platform-phase7-integration-lab; rule order-platform-phase7-order-confirmed-integration matching source com.order-platform.orders and detail type OrderConfirmed; Standard SSE-SQS queue order-platform-phase7-event-observer-lab; exact EventBridge-to-SQS resource policy
+Approved traffic: At most three application-generated/test events; existing Phase 6 queues may be used only after a fresh empty-state check
+Billing and cap: EventBridge custom ingestion/target delivery and SQS requests are usage-billed; the bus, rule, and queue have no hourly idle charge. Conservative incremental pre-tax cap USD 0.01.
+Explicit exclusions: No SNS, SES, Lambda, Scheduler, ECS/Fargate, RDS start, ALB, NAT Gateway, endpoint, public IPv4, new database, secret, bucket, or email
+Required cleanup: Stop local processes/containers as appropriate; remove the EventBridge target; delete the rule, observer queue, and custom bus; verify exact absence; verify retained Phase 6 source/DLQ empty and retained RDS stopped; record cleanup status
+Approval: User explicitly approved the temporary three-resource integration lab and USD 0.01 cap
+```
+
+## Phase 7 real-publisher integration close-out — 2026-09-11
+
+```text
+Outcome: VERIFIED. One real local API-created order followed the complete asynchronous path: transactional fulfill_order outbox record, existing Phase 6 source queue, SQS worker completion, transactional OrderConfirmed outbox record, EventBridge publication, exact rule match, and direct delivery to the temporary SQS observer.
+Database evidence: The new order reached ready_to_ship and its job reached completed. Both fulfill_order and OrderConfirmed outbox messages were published in exactly one attempt. The domain eventId equaled the OrderConfirmed outbox ID; correlationId equaled the order ID; causationId equaled the original fulfill_order outbox ID; order amount and INR currency matched.
+AWS delivery evidence: The observer held exactly one raw EventBridge envelope. Existing Phase 6 source queue and DLQ returned to zero visible, in-flight, and delayed messages. The queue resource policy preserved owner access and allowed only events.amazonaws.com to call sqs:SendMessage from the exact rule and source account.
+Resources deleted: EventBridge target removed; integration rule deleted; observer queue and its event deleted; custom integration bus deleted
+AWS cleanup verification: Exact integration bus and observer queue are absent in ap-south-1; the Phase 7 integration rule prefix is absent on the default bus; retained Phase 6 source/DLQ remain empty; retained Phase 5 RDS remains stopped
+Local cleanup: API, outbox publisher, and SQS worker have no matching process or port-3000 listener. Local PostgreSQL container is stopped with exit code 0; named volume order-platform_postgres_data remains preserved intentionally for future local development at USD 0 AWS cost.
+Expected incremental AWS cost: Below the approved USD 0.01 pre-tax cap; only tiny delayed EventBridge/SQS request usage may appear
+Billing signal: Same-session budget check reported USD 1.221 actual and USD 3.446 forecast against the USD 5 warning budget; billing is delayed and is not cleanup evidence
+Phase 7 integration-lab cleanup status: VERIFIED
+Overall account cleanup status: PARTIAL — previously documented retained foundation, stopped RDS storage/backups/managed secret, ECR/S3 data, and empty Phase 6 queues remain intentionally retained
+Unresolved integration-lab items: None
+```
+
+## Phase 7 operational SNS approval gate — 2026-09-12
+
+```text
+Status: APPROVED by the user on 2026-09-12, including the corrected SNS subject behavior; no resource has been created at this checkpoint
+Identity and Region: Expected aws-learning IAM Identity Center caller and Mumbai ap-south-1 verified; account identifier omitted
+Fresh baseline: No custom EventBridge bus, Phase 7 rule, SNS topic, Lambda function, Scheduler schedule, Phase 7 IAM role, or Phase 7 log group exists. Both retained Phase 6 queues are empty. ECS has zero services/running/pending tasks. Zero ALB, target group, active NAT Gateway, Elastic IP, VPC endpoint, or public ENI exists. Retained RDS is stopped/private with automatic restart about 2026-09-16 20:19 IST. SES is enabled but sandboxed with zero identities; SES is excluded from this gate.
+Billing signal: USD 1.303 actual and USD 3.371 forecast against the USD 5 monthly warning budget at its 2026-09-12 update; billing is delayed and is not cleanup evidence
+Approved resources: Temporary custom bus order-platform-phase7-notifications-lab; exact OrderConfirmed rule order-platform-phase7-order-confirmed-operations; Standard topic order-platform-phase7-operations-lab; one email subscription whose address remains outside repository evidence
+Approved externally visible actions: One AWS SNS subscription-confirmation email and, only after confirmation, one operational email whose subject is generated by the EventBridge-to-SNS email integration and whose transformed body begins [TEST] AWS Order Platform operational notification and contains a sanitized OrderConfirmed lab message with no credentials or personal data. EventBridge target input transformation controls the body but does not provide the SNS email Subject parameter.
+Billing and cap: EventBridge custom ingestion plus SNS requests/email delivery are usage-billed with no hourly idle fee. The bounded proof has a conservative incremental pre-tax cap of USD 0.01.
+Explicit exclusions: No SES identity or SES send, Lambda, Scheduler, IAM role, CloudWatch log group, RDS start, ECS/Fargate task, ALB, NAT Gateway, endpoint, public IPv4, database/schema change, S3 object, or Phase 8 resource
+Required cleanup: Remove the EventBridge target; delete the rule, email subscription, SNS topic, and custom bus; verify exact absence; verify retained queues empty and RDS stopped; record delayed-billing caveat and separate disposable versus overall cleanup status
+Approval: User explicitly approved the SNS lab resources and USD 0.01 cap, then separately approved the corrected AWS-generated-subject/transformed-body behavior before creation or sending.
+```
+
+## Phase 7 operational SNS aborted-lab close-out — 2026-09-12
+
+```text
+Outcome: The user stopped the exercise after the subscription form rejected a typed topic name as an invalid ARN. Fresh inventory showed that the intended Standard topic had never been created; the form text was not a selected ARN. The only lab resource was the earlier mistaken FIFO topic, which had zero subscriptions and zero messages.
+Emergency cleanup: The exact mistaken FIFO topic was deleted and both approved topic names were verified absent. No subscription-confirmation or operational email was sent.
+AWS verification: Zero custom EventBridge buses, Phase 7 rules, Lambda functions, and Scheduler schedules exist. RDS remains stopped. ECS has zero running/pending tasks. Both retained Phase 6 source and DLQ queues report zero visible, in-flight, and delayed messages.
+Expected incremental cost: Effectively USD 0 apart from any tiny delayed control-plane/request usage; no notification delivery occurred
+Phase 7 aborted-lab cleanup status: VERIFIED
+Overall account cleanup status: PARTIAL — previously documented retained foundation, stopped RDS storage/backups/managed secret, ECR/S3 data, and empty Phase 6 queues remain intentionally retained
+Unresolved item: The operational SNS email path remains undemonstrated.
+Resumption: The user immediately asked to continue the same operational SNS lab. The previously approved resource scope, externally visible actions, cleanup plan, and USD 0.01 cap remain unchanged; no additional resource or action is authorized.
+```
+
+## Phase 7 operational SNS successful close-out — 2026-09-12
+
+```text
+Outcome: VERIFIED. One synthetic OrderConfirmed v1 event was accepted by the temporary custom EventBridge bus. The enabled rule matched only source com.order-platform.orders and detail type OrderConfirmed, transformed the event into a sanitized operational message, and targeted the Standard SNS topic. The topic delivered one email to its single confirmed subscription; the user supplied the received body as evidence. No email address, account identifier, subscription ARN, or unsubscribe URL is retained in repository evidence.
+Permission evidence: Initial read-only verification found that target creation had not added an SNS resource-policy grant. Before the event was sent, the existing owner policy was preserved and one statement was added allowing only events.amazonaws.com to call SNS:Publish on the exact topic when aws:SourceArn equals the exact Phase 7 rule ARN. Post-change verification found exactly one such scoped statement.
+Failure/diagnostic evidence: A first mistaken FIFO topic had been safely deleted before the successful attempt. The later invalid-ARN subscription error was diagnosed as typing a topic name when the intended Standard topic did not yet exist. During final cleanup, an initial automated deletion command was rejected before execution because its bus name was mistyped; exact targets were re-resolved read-only and then deleted individually in dependency order.
+Resources deleted: EventBridge target removed; rule deleted; SNS Standard topic and its email subscription deleted; custom event bus deleted. The earlier mistaken FIFO topic was already deleted.
+AWS cleanup verification: Both exact topic variants and the exact custom bus are absent; no Phase 7 rule exists on the default bus; zero Lambda functions, Lambda event-source mappings, Scheduler schedules, SES identities, or Phase 7 log groups exist. Both retained Phase 6 queues report zero visible, in-flight, and delayed messages. ECS has zero running/pending tasks. Zero public ENIs, VPC endpoints, active NAT Gateways, EIPs, ALBs, or target groups exist. Retained RDS remains stopped/private with automatic restart about 2026-09-16 20:19 IST and must be reviewed by 2026-09-15.
+Expected incremental cost: Below the approved USD 0.01 pre-tax cap; only one custom event plus tiny SNS request/email-delivery usage may appear later
+Billing signal: Preflight reported USD 1.303 actual and USD 3.371 forecast against the USD 5 warning budget; billing is delayed and is not cleanup evidence
+Phase 7 operational SNS disposable cleanup status: VERIFIED
+Overall account cleanup status: PARTIAL — previously documented retained foundation, stopped RDS storage/backups/managed secret, ECR/S3 data, and empty Phase 6 queues remain intentionally retained
+Remaining Phase 7 work: SES transactional order email, scheduled low-stock Lambda/RDS/S3 report, Scheduler retry/DLQ, reporting-period idempotency, schema-evolution compatibility, independent consumer failure, ADR, and workbook review
+```
+
+## Phase 7 SES transactional-email approval gate — 2026-09-13
+
+```text
+Status: APPROVED by the user on 2026-09-13; no SES identity or message has been created/sent at this checkpoint
+Identity and Region: Expected aws-learning IAM Identity Center caller and Mumbai ap-south-1 verified; account identifier omitted
+Fresh baseline: SES production access false (sandbox), sending enabled, enforcement healthy, daily maximum 200, sent in last 24 hours zero, and identity count zero. No custom EventBridge bus, SNS topic, Lambda function, or Scheduler schedule exists. Retained RDS is stopped/private with automatic restart about 2026-09-16 20:19 IST and review deadline 2026-09-15. Both retained Phase 6 queues are empty.
+Billing signal: USD 1.424 actual and USD 3.381 forecast against the USD 5 monthly warning budget at its 2026-09-13 update; billing is delayed and is not cleanup evidence
+Approved AWS resource: One SES email-address identity, entered privately in the console and used as both sandbox sender and recipient; address must remain out of Git, logs, screenshots, and repository evidence
+Approved externally visible actions: One SES identity-verification email and, only after verification and local consumer validation, one transactional email with subject [TEST] Your order is confirmed — AWS learning and body containing a lab order UUID, INR 125.00, and No action required
+Implementation scope: Local OrderConfirmed-to-SES consumer with tests plus a compatible additive event-schema evolution exercise; no deployed Lambda or other AWS compute
+Billing and cap: SES identity has no idle fee; outbound email is usage-billed. One bounded transactional message plus verification remains under a conservative USD 0.01 incremental pre-tax cap.
+Explicit exclusions: No production-access request, domain/DNS identity, dedicated IP, Virtual Deliverability Manager paid option, EventBridge/SNS resource, Lambda deployment, Scheduler, IAM role, CloudWatch log group, RDS start, ECS/Fargate, ALB, NAT Gateway, endpoint, public IPv4, S3 object, or Phase 8 resource
+Required cleanup: Delete the SES identity after evidence; verify identity count zero, no Phase 7 runtime, retained queues empty, and RDS stopped; record delivered-message irreversibility and delayed-billing caveat
+Approval: User approved this exact identity/message scope, local implementation, cleanup, and USD 0.01 cap
+```
+
+## Phase 7 SES transactional-email implementation checkpoint — 2026-09-13
+
+```text
+Outcome: Local implementation VERIFIED. The user manually added the SES v2 SDK, OrderConfirmed-to-SES consumer, four focused tests, and one bounded manual lab runner. TypeScript type checking and compilation pass. Direct execution of the compiled focused test file passes 4/4: valid delivery command, invalid-schema rejection before the side effect, additive-field compatibility, and missing-MessageId failure handling. The ordinary Node test-runner command was blocked by a local Windows spawn EPERM restriction before tests executed; this is not counted as an application failure.
+AWS evidence: Read-only SES account verification in ap-south-1 reports sending enabled, production access false (sandbox), exactly 1 message sent in the preceding 24 hours, and a daily maximum of 200. No second message was sent during verification. The email address and SES message identifier are intentionally omitted.
+Recipient behavior: For this sandbox lab, SES_LAB_EMAIL is intentionally used as both FromEmailAddress and the sole ToAddress. A production design will separate the verified sender identity from the customer recipient and will not require each customer to create an SNS-style subscription.
+Cost status: The single usage-billed message remains within the approved USD 0.01 incremental pre-tax cap; billing signals can be delayed.
+Cleanup status: PENDING. The verified/tagged SES identity remains intentionally retained only for the active lesson and must be deleted and verified absent at session close.
+```

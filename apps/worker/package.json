@@ -11,10 +11,12 @@
     "typecheck": "tsc --noEmit",
     "outbox:publish": "tsx --env-file-if-exists=../../.env src/outbox-main.ts",
     "sqs:worker": "tsx --env-file-if-exists=../../.env src/sqs-worker-main.ts",
-    "phase6:lab": "tsx --env-file-if-exists=../../.env src/phase6-lab.ts"
+    "phase6:lab": "tsx --env-file-if-exists=../../.env src/phase6-lab.ts",
+    "phase7:ses-email": "tsx --env-file-if-exists=../../.env src/phase7-ses-email.ts"
   },
   "dependencies": {
     "@aws-sdk/client-eventbridge": "^3.1118.0",
+    "@aws-sdk/client-sesv2": "^3.1118.0",
     "@aws-sdk/client-sqs": "^3.1118.0",
     "@order-platform/config": "0.1.0",
     "@order-platform/database": "0.1.0",
