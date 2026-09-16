@@ -142,7 +142,7 @@ exist for only a few minutes.
 | Phase 7 operational-notification rule                 | `order-platform-phase7-order-confirmed-operations`; exact `OrderConfirmed` filter with one SNS target, sanitized input transformer, zero target retries/no DLQ, and SNS permission scoped to the exact rule ARN | `ap-south-1` | No residual charge after target removal and verified rule/bus deletion | Target removed first; rule then deleted; exact bus/rule absence verified | DELETED — VERIFIED |
 | Phase 7 operational SNS topic and email subscription  | `order-platform-phase7-operations-lab` Standard topic plus one confirmed email subscription; address intentionally omitted | `ap-south-1` | No residual charge after verified deletion; one email delivery may appear as delayed usage | Topic and its subscription deleted; both exact topic variants verified absent | DELETED — VERIFIED |
 | Phase 7 accidental FIFO SNS topic                    | `order-platform-phase7-operations-lab.fifo`; created during manual topic-type selection, with no subscription or message | `ap-south-1` | No residual charge after verified deletion; no delivery occurred | Deleted during emergency stop and exact absence verified | DELETED — VERIFIED |
-| Phase 7 SES transactional-email identity             | One verified and tagged sandbox email-address identity used as both sender and recipient; exact address intentionally omitted; one approved transactional test email sent | `ap-south-1` | No idle identity charge; one outbound message is usage-billed | Delete after completing the SES evidence review and verify zero identities | RUNNING — REQUIRED |
+| Phase 7 SES transactional-email identity             | One verified and tagged sandbox email-address identity used as both sender and recipient; exact address intentionally omitted; one approved transactional test email sent | `ap-south-1` | No idle identity charge; outbound messages are usage-billed | Retain only through the scheduled-report proof, then delete and verify zero identities no later than 2026-09-16 | RETAINED — JUSTIFIED |
 
 Allowed status values:
 
@@ -913,5 +913,27 @@ Outcome: Local implementation VERIFIED. The user manually added the SES v2 SDK, 
 AWS evidence: Read-only SES account verification in ap-south-1 reports sending enabled, production access false (sandbox), exactly 1 message sent in the preceding 24 hours, and a daily maximum of 200. No second message was sent during verification. The email address and SES message identifier are intentionally omitted.
 Recipient behavior: For this sandbox lab, SES_LAB_EMAIL is intentionally used as both FromEmailAddress and the sole ToAddress. A production design will separate the verified sender identity from the customer recipient and will not require each customer to create an SNS-style subscription.
 Cost status: The single usage-billed message remains within the approved USD 0.01 incremental pre-tax cap; billing signals can be delayed.
-Cleanup status: PENDING. The verified/tagged SES identity remains intentionally retained only for the active lesson and must be deleted and verified absent at session close.
+Cleanup status: PARTIAL. On 2026-09-14 the user explicitly approved retaining the verified/tagged SES identity, which has no idle identity fee, only through the scheduled-report proof to avoid repeating verification. No additional email send is authorized by this retention decision. Delete and verify the identity absent at Phase 7 close, no later than 2026-09-16.
+```
+
+## Phase 7 scheduled low-stock report local checkpoint — 2026-09-14
+
+```text
+Outcome: Local implementation checkpoint VERIFIED. The user manually implemented a deterministic low-stock report document and reporting-period S3 key, the inventory query repository, dependency-injected orchestration, conditional S3 storage with checksum and short-lived download URL, SES report notifier, and the Scheduler-facing Lambda handler with Asia/Kolkata reporting-date conversion.
+Idempotency and failure semantics: Repeated runs for one reporting period target the same S3 key and use If-None-Match *, so the report is not overwritten. A retry after report storage can attempt notification again; report storage is idempotent while SES notification remains at-least-once and can rarely duplicate.
+Verification: Worker TypeScript checking, ESLint, and repository formatting checks pass. Direct execution of the focused compiled tests passes 23/23 across report generation, orchestration, S3 adapter, SES notifier, Lambda handler, and the prior transactional-order SES consumer. The normal multi-file Node test runner remains subject to the previously recorded local Windows spawn EPERM restriction.
+AWS impact: No Lambda, Scheduler, S3 object, email, database connection, or other AWS operation was created or invoked by this local implementation. The retained RDS remains stopped and the separately approved verified SES identity remains retained only through the scheduled-report proof.
+Remaining local work: Compose the real repository/storage/notifier into the exported Lambda entry point, add strict environment configuration, and run the real PostgreSQL repository integration test locally before any AWS deployment gate.
+```
+
+## Phase 7 session safety checkpoint — 2026-09-16
+
+```text
+Status: EMERGENCY STOP VERIFIED
+Identity and Region: Expected aws-learning Identity Center caller and Mumbai ap-south-1 were used for the read-only audit; account identifier omitted.
+RDS finding: The retained private RDS instance exceeded AWS's seven-day stopped limit and automatically started at about 2026-09-16 21:03 IST. Events recorded automatic start, restart, a backup, and a managed-master-credential reset transition. At 21:55 IST it was resetting-master-credentials; a stop request was accepted shortly afterward and the instance entered stopping. AutomaticRestartTime was null during the transition. Compute is billable from automatic start until stop completion; storage/backups/managed-secret residual remains separately billable.
+Immediate action and result: Mandatory emergency-stop procedure activated. No Phase 7 deployment, Lambda, Scheduler, S3 report object, or new email was started. AWS accepted the stop request and later verified the instance stopped and private. Its next automatic restart is 2026-09-23 22:04 IST; review/start-stop/delete by 2026-09-22.
+Estimated unexpected runtime cost: The automatic-start event occurred about 21:03 IST and stop completion was reflected by the new 22:04 IST restart anchor, approximately one hour of db.t4g.micro compute or about USD 0.021 before tax at the previously recorded Mumbai rate, plus any ordinary backup/API usage. Billing is delayed and may differ slightly.
+Other Phase 7 state: One previously approved SES sandbox identity remains retained for the scheduled-report proof. Phase 7 Lambda-function and Scheduler-schedule counts are zero.
+Cleanup status: VERIFIED for the unexpected RDS runtime; overall account cleanup remains PARTIAL for documented retained storage, backup, managed-secret, ECR/S3/queue/foundation state, and the temporarily retained SES identity.
 ```

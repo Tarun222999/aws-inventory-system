@@ -27,11 +27,12 @@ void test("sends an email for a valid OrderConfirmed event", async () => {
     region: "ap-south-1",
     fromEmailAddress: "sender@example.com",
     toEmailAddress: "customer@example.com",
-    async sendCommand(command) {
+    sendCommand(command) {
       commands.push(command);
-      return {
+
+      return Promise.resolve({
         MessageId: "ses-message-123",
-      };
+      });
     },
   });
 
@@ -42,14 +43,9 @@ void test("sends an email for a valid OrderConfirmed event", async () => {
 
   const input = commands[0]?.input;
 
-  assert.deepEqual(input?.Destination?.ToAddresses, [
-    "customer@example.com",
-  ]);
+  assert.deepEqual(input?.Destination?.ToAddresses, ["customer@example.com"]);
 
-  assert.match(
-    input?.Content?.Simple?.Body?.Text?.Data ?? "",
-    /₹125\.00/,
-  );
+  assert.match(input?.Content?.Simple?.Body?.Text?.Data ?? "", /₹125\.00/);
 });
 
 void test("rejects an invalid event before calling SES", async () => {
@@ -59,11 +55,12 @@ void test("rejects an invalid event before calling SES", async () => {
     region: "ap-south-1",
     fromEmailAddress: "sender@example.com",
     toEmailAddress: "customer@example.com",
-    async sendCommand() {
+    sendCommand() {
       sendCount += 1;
-      return {
+
+      return Promise.resolve({
         MessageId: "should-not-be-used",
-      };
+      });
     },
   });
 
@@ -82,10 +79,10 @@ void test("accepts additive fields from a newer producer", async () => {
     region: "ap-south-1",
     fromEmailAddress: "sender@example.com",
     toEmailAddress: "customer@example.com",
-    async sendCommand() {
-      return {
+    sendCommand() {
+      return Promise.resolve({
         MessageId: "ses-message-456",
-      };
+      });
     },
   });
 
@@ -102,8 +99,8 @@ void test("fails when SES does not return a MessageId", async () => {
     region: "ap-south-1",
     fromEmailAddress: "sender@example.com",
     toEmailAddress: "customer@example.com",
-    async sendCommand() {
-      return {};
+    sendCommand() {
+      return Promise.resolve({});
     },
   });
 

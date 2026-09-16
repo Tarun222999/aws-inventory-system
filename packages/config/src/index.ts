@@ -175,3 +175,42 @@ export function loadSqsWorkerConfig(
 
   return result.data;
 }
+
+const lowStockReportEnvironmentSchema = sharedEnvironmentSchema.extend({
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(2).default(1),
+
+  AWS_REGION: z.string().min(1).default("ap-south-1"),
+
+  LOW_STOCK_REPORT_BUCKET: z
+    .string()
+    .min(3)
+    .max(63)
+    .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/),
+
+  LOW_STOCK_THRESHOLD: z.coerce.number().int().min(0).max(1_000_000).default(5),
+
+  LOW_STOCK_REPORT_FROM_EMAIL: z.string().email(),
+
+  LOW_STOCK_REPORT_TO_EMAIL: z.string().email(),
+
+  LOW_STOCK_REPORT_TIME_ZONE: z.string().min(1).default("Asia/Kolkata"),
+
+  LOW_STOCK_REPORT_DOWNLOAD_EXPIRES_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(30)
+    .max(900)
+    .default(300),
+});
+
+export function loadLowStockReportConfig(
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  const result = lowStockReportEnvironmentSchema.safeParse(environment);
+
+  if (!result.success) {
+    throw formatConfigurationError(result.error);
+  }
+
+  return result.data;
+}
