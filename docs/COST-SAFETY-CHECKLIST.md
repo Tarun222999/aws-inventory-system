@@ -105,7 +105,7 @@ exist for only a few minutes.
 | Phase 3 temporary EC2 probes and root volumes           | Public probe `i-0d3e72bcd91720016` with encrypted root `vol-0b6dbf03b74485f69`; private probe `i-011a920420e6bc428` with encrypted root `vol-0c825fe303f46b730` | Public A in `ap-south-1a`; Private B in `ap-south-1b` | No residual charge after verified termination/deletion; delayed usage may still appear | Both terminated; volumes, snapshots, ENIs, automatic public IPv4, and active SSM inventory verified absent | DELETED — VERIFIED |
 | Phase 3 IAM role and instance profile                   | `order-platform-phase3-probe-role`                              | Global IAM service                            | No residual charge                                                                  | Managed policy detached by console deletion; role and matching instance profile both return `NoSuchEntity` | DELETED — VERIFIED |
 | Phase 4 reusable VPC foundation                        | `order-platform-phase4-vpc` (`vpc-01f2e981ee69febad`); public A `subnet-022206a94faffa567`; public B `subnet-03d602d500bb7f64a`; private A `subnet-0959a93361d698088`; private B `subnet-0462c591e5d829fdd`; attached IGW `igw-03dcd901c5395fbf7`; main route table `rtb-0cf4de2df4c9d7be0`; public route table `rtb-069097f89f8bd5070`; private route table `rtb-0f14920dd8fddf372`; ALB SG `sg-037d90e37d307a692`; task SG `sg-09ee205b5eb8a0727` | `ap-south-1`; `ap-south-1a` and `ap-south-1b` | USD 0 expected direct idle service cost; traffic can incur transfer charges | Retained through Phase 8; final Phase 5 audit found one expected private stopped-RDS ENI, zero public IPv4 associations, NAT, EIP, or endpoints; review 2026-08-31 and normally delete at Phase 8/9 boundary | RETAINED — JUSTIFIED; RE-VERIFIED |
-| Phase 4 ECR repository and images                      | `order-platform-phase4-api`; immutable/AES-256/basic scanning. The historical healthy Phase 4 tag was previously retained, but the fresh 2026-08-16 inventory shows no Phase 4 image; deletion timing was not reconstructed. The repository now contains only the Phase 5 images documented below | `ap-south-1` | USD 0 residual for the absent Phase 4 image; current repository storage is counted in the Phase 5 application-images row; same-Region ECR-to-Fargate transfer USD 0 | Retain the repository and reconcile the Phase 5 images to one known-good integrated image; review no later than 2026-08-22 | REPOSITORY RETAINED; HISTORICAL PHASE 4 IMAGE ABSENT — FRESHLY VERIFIED |
+| Phase 4 ECR repository and images                      | `order-platform-phase4-api`; immutable/AES-256/basic scanning. The historical healthy Phase 4 tag is absent. A fresh 2026-09-21 inventory found the documented Phase 5 image plus two Phase 6 images recorded separately below | `ap-south-1` | Repository has no direct charge; image storage is recorded on the corresponding image rows; same-Region ECR-to-Fargate transfer is USD 0 | Retain the repository only while a reviewed image is needed; reconcile its contents at the Phase 8/9 boundary | REPOSITORY RETAINED; CONTENT RE-VERIFIED |
 | Phase 4 ECS task execution and task roles              | `order-platform-phase4-execution-role` retains only `AmazonECSTaskExecutionRolePolicy`; `order-platform-phase4-task-role` now has the Phase 5 exact-secret and exact-product-prefix policies described below, with no wildcard resource | Global IAM service | USD 0 direct service cost; retained permissions remain a security obligation | Retain only these scoped reusable roles through Phase 8; re-review on 2026-08-31 and delete at Phase 8/9 boundary | RETAINED — JUSTIFIED; LEAST PRIVILEGE RE-VERIFIED |
 | Phase 4 CloudWatch log group                           | `/aws/order-platform/phase4/api`; startup, health-failure, draining, and SIGTERM evidence captured before deletion | `ap-south-1` | USD 0 expected residual after deletion; delayed ingestion/storage usage may still appear | Phase 4 log-group prefix verified empty | DELETED — VERIFIED |
 | Phase 4 ECS cluster                                    | `order-platform-phase4-cluster`; empty Fargate cluster with Container Insights disabled | `ap-south-1` | USD 0 direct service cost while empty | Retain empty cluster through Phase 8; re-verify zero services/tasks/EC2 capacity on 2026-08-31; delete at Phase 8/9 boundary | RETAINED — JUSTIFIED |
@@ -115,11 +115,12 @@ exist for only a few minutes.
 | Phase 5 DB subnet group                                | `order-platform-phase5-db-subnet-group`; exact private A/B membership verified | `ap-south-1`; `ap-south-1a` and `ap-south-1b` | USD 0 direct service cost; traffic only while the DB is active | Retain with the stopped DB through Phase 8; exact VPC/subnets/tags verified; review 2026-08-31 and Phase 8/9 boundary | RETAINED — JUSTIFIED |
 | Phase 5 ECS-to-RDS security-group path                 | New `order-platform-phase5-db-sg` inbound PostgreSQL/5432 only from retained ECS task SG; retained task SG outbound 5432 only to new DB SG; paired references verified | `ap-south-1`; Phase 4 VPC | USD 0 direct service cost; rules are a security obligation | Retain verified least-privilege pair with no public DB ingress; review 2026-08-31 and Phase 8/9 boundary | RETAINED — JUSTIFIED |
 | Phase 5 PostgreSQL parameter group                     | `order-platform-phase5-postgres16`; family `postgres16`; effective dynamic `rds.force_ssl=1` from PostgreSQL 16 system default; exact tags verified; prior mistaken Aurora group deleted; TLS 1.3 success and controlled non-TLS rejection demonstrated | `ap-south-1` | USD 0 direct service cost | Retain with the stopped DB through Phase 8; review 2026-08-31 and Phase 8/9 boundary | RETAINED — JUSTIFIED; TLS ENFORCEMENT VERIFIED |
-| Phase 5 RDS PostgreSQL instance                        | `order-platform-phase5-postgres`; PostgreSQL 16.14; Single-AZ `db.t4g.micro`; encrypted 20 GiB gp3; private only; autoscaling off; one-day backups; auto-minor upgrades off; free seven-day Performance Insights retained; Enhanced Monitoring off | `ap-south-1` | USD 0 instance compute while stopped; USD 0.021/running hour during approved labs; retained 20 GiB storage about USD 2.62/month and charged backup above allocation USD 0.095/GB-month | Final application session completed and `stopped` was re-verified. Automatic restart is 2026-08-24 23:46 IST; review/start-stop/delete by 2026-08-23 | STOPPED — VERIFIED; STORAGE RETAINED |
+| Phase 5 RDS PostgreSQL instance                        | `order-platform-phase5-postgres`; PostgreSQL 16.14; Single-AZ `db.t4g.micro`; encrypted 20 GiB gp3; private only; autoscaling off; one-day backups; auto-minor upgrades off; free seven-day Performance Insights retained; Enhanced Monitoring off | `ap-south-1` | USD 0 instance compute while stopped; USD 0.021/running hour during approved labs; retained 20 GiB storage about USD 2.62/month and charged backup above allocation USD 0.095/GB-month | Fresh Phase 8 pre-design inventory verified `stopped` and private with automatic restart at 2026-09-27 23:16:38 IST; review/start-stop/delete by 2026-09-26 | STOPPED — VERIFIED; STORAGE RETAINED |
 | Phase 5 RDS-managed master secret                      | RDS-owned managed secret for `order-platform-phase5-postgres`; exact identifier and value omitted; project tags verified; status active; managed rotation enabled and recovery demonstrated | `ap-south-1` | USD 0.40/secret-month plus USD 0.05/10,000 API calls, prorated; remains billable while retained | Retain only with the stopped database through Phase 8; review 2026-08-23 and 2026-08-31. The RDS-managed secret is deleted with its DB, so confirm recovery/data intent first | RETAINED — JUSTIFIED; ROTATION VERIFIED |
 | Phase 5 Enhanced Monitoring role                       | `rds-monitoring-role`; was created by the database workflow and had only `AmazonRDSEnhancedMonitoringRole`; all DB monitoring intervals verified zero before removal | Global IAM service | USD 0 residual after verified deletion | Managed policy detached; exact role deleted and `NoSuchEntity` verified | DELETED — VERIFIED |
 | Phase 5 Enhanced Monitoring log group                  | `RDSOSMetrics`; was created during the brief 60-second monitoring interval; contained zero stored bytes | `ap-south-1` | USD 0 residual after verified deletion | Exact log group deleted after monitoring was disabled; prefix inventory verified empty | DELETED — VERIFIED |
 | Phase 5 application image                              | Clean integrated/migration image `phase5-migration-runner-20260816-v1`, 119,883,392 compressed bytes; ECR Basic scan COMPLETE with zero Critical/High/Medium/Low findings. It successfully ran the dedicated migration, presigned-S3 proof, and real API entrypoint. All superseded/quarantined tags are absent | `ap-south-1` | ECR storage USD 0.10/GB-month; retained size about 0.120 GB or USD 0.012/month; same-Region Fargate pull transfer USD 0; Basic scanning has no additional charge | Retain this one known-good integrated image through Phase 8; review 2026-08-31 and at the Phase 8/9 boundary | ONE CLEAN IMAGE RETAINED — RE-VERIFIED |
+| Phase 6 unreviewed ECR images                          | `phase6-lab-20260828-v1` (120,122,334 compressed bytes) and `phase6-diagnostic-20260828-v2` (120,117,270 compressed bytes), freshly observed in `order-platform-phase4-api` on 2026-09-21; neither is a documented Phase 8 retained artifact | `ap-south-1` | About 0.240 GB of ECR storage, or about USD 0.024/month at the ledger's USD 0.10/GB-month reference rate, plus no direct repository cost | Do not run. Obtain explicit learner confirmation that the images are disposable, then delete by digest and verify absence; otherwise document a Phase 8 use and review date | UNKNOWN — ACTION REQUIRED |
 | Phase 5 task definition and workload permissions      | Revision 5 is the successful DB-lab baseline; revision 8 completed rotation; revision 11 completed the dedicated migration; revision 12 completed S3 proof; revision 15 is the corrected real API blueprint with TCP/3000 and `API_HOST=0.0.0.0`. Revisions 6/7 and superseded application revisions remain inert. The task role has exactly two scoped policies allowing only `secretsmanager:GetSecretValue` on the intended secret and `s3:GetObject`/`PutObject`/`DeleteObject` on the exact product prefix; no wildcard resource. Execution role is unchanged | `ap-south-1` / global IAM | USD 0 direct service cost; retained permissions and obsolete active revisions are security/configuration obligations | Never run known-bad/superseded revisions; retain revision 15 plus scoped permissions through Phase 8 and review/deregister obsolete revisions at the Phase 8/9 boundary | REVISION 15 APPLICATION SUCCESS VERIFIED; LEAST PRIVILEGE RE-VERIFIED |
 | Phase 5 standalone Fargate lab tasks                   | Revisions 5/8/11/12 completed DB, rotation, migration, and S3 labs. During final application work, one wrong-SG task and one loopback-bound task were stopped before target registration; revision 15 then proved healthy ALB routing, database-backed readiness, real product/image flows, and concurrent last-item behavior | `ap-south-1` | Per-second Fargate plus temporary public-IPv4 usage; final gate allowed up to USD 0.20 including RDS/ALB/log/request dimensions. Delayed usage may appear | Final audit verified zero services, running/pending tasks, container instances, task ENIs, or public IPv4 associations | STOPPED — RUNTIME CLEANUP VERIFIED |
 | Phase 5 lab log group                                  | `/aws/order-platform/phase5/lab`, Standard class and one-day retention, captured sanitized success evidence and reported zero stored bytes before deletion | `ap-south-1` | Delayed ingestion usage may still appear; USD 0 storage residual after deletion | User deleted the group after evidence capture; exact absence verified at 00:44:59 IST on 2026-08-12 | DELETED — VERIFIED |
@@ -142,7 +143,28 @@ exist for only a few minutes.
 | Phase 7 operational-notification rule                 | `order-platform-phase7-order-confirmed-operations`; exact `OrderConfirmed` filter with one SNS target, sanitized input transformer, zero target retries/no DLQ, and SNS permission scoped to the exact rule ARN | `ap-south-1` | No residual charge after target removal and verified rule/bus deletion | Target removed first; rule then deleted; exact bus/rule absence verified | DELETED — VERIFIED |
 | Phase 7 operational SNS topic and email subscription  | `order-platform-phase7-operations-lab` Standard topic plus one confirmed email subscription; address intentionally omitted | `ap-south-1` | No residual charge after verified deletion; one email delivery may appear as delayed usage | Topic and its subscription deleted; both exact topic variants verified absent | DELETED — VERIFIED |
 | Phase 7 accidental FIFO SNS topic                    | `order-platform-phase7-operations-lab.fifo`; created during manual topic-type selection, with no subscription or message | `ap-south-1` | No residual charge after verified deletion; no delivery occurred | Deleted during emergency stop and exact absence verified | DELETED — VERIFIED |
-| Phase 7 SES transactional-email identity             | One verified and tagged sandbox email-address identity used as both sender and recipient; exact address intentionally omitted; one approved transactional test email sent | `ap-south-1` | No idle identity charge; outbound messages are usage-billed | Retain only through the scheduled-report proof, then delete and verify zero identities no later than 2026-09-16 | RETAINED — JUSTIFIED |
+| Phase 7 SES transactional-email identity             | One verified and tagged sandbox email-address identity used as sender/recipient for transactional and scheduled-report proofs; exact address intentionally omitted | `ap-south-1` | No residual identity charge after deletion; sent emails are irreversible external deliveries and usage may appear later | Identity deleted after proof; fresh SES inventory verified zero identities | DELETED — VERIFIED |
+| Phase 7 low-stock Lambda security group              | `order-platform-phase7-low-stock-lambda-sg`; no inbound; outbound PostgreSQL/5432 only to the retained DB SG and HTTPS/443 only to the Phase 7 endpoint SG and Mumbai S3 managed prefix list | `ap-south-1`; retained Phase 4 VPC | No residual charge after deletion | Temporary DB ingress and Lambda-SG egress references removed; Lambda-managed ENI disappeared; fresh SG inventory verified exact absence | DELETED — VERIFIED |
+| Phase 7 AWS-endpoint security group                  | `order-platform-phase7-aws-endpoints-sg`; inbound HTTPS/443 only from the Phase 7 Lambda SG; no outbound rules required for stateful replies | `ap-south-1`; retained Phase 4 VPC | No residual charge after deletion | Both interface endpoints and endpoint ENIs disappeared; fresh SG inventory verified exact absence | DELETED — VERIFIED |
+| Phase 7 low-stock report bucket                     | `order-platform-phase7-low-stock-reports-992382645171`; private Mumbai bucket held one verified report object | `ap-south-1` | No residual storage charge after deletion; prior requests may appear later | Report object deleted first; bucket deleted; fresh bucket inventory verified exact absence | DELETED — VERIFIED |
+| Phase 7 S3 gateway endpoint                        | `vpce-028f02b13982b287a`; `order-platform-phase7-s3-endpoint`; Gateway endpoint for Mumbai S3 on the private route table | `ap-south-1`; retained Phase 4 VPC | No residual endpoint charge | Endpoint deleted; fresh VPC endpoint inventory verified absence, which also removes its managed route | DELETED — VERIFIED |
+| Phase 7 Secrets Manager interface endpoint         | `vpce-0ad015aafe865fe0a`; one private-b endpoint ENI; clock began 2026-09-20 22:03:18 IST | `ap-south-1b` | Prior endpoint-hour/data usage may appear later; no ongoing charge after deletion | Endpoint deleted before deadline; fresh endpoint and ENI inventories verified absence | DELETED — VERIFIED |
+| Phase 7 SES API interface endpoint                 | `vpce-0e4900f2311bebc99`; one private-b endpoint ENI; conservative clock began 2026-09-20 22:10:47 IST | `ap-south-1b` | Prior endpoint-hour/data usage may appear later; no ongoing charge after deletion | Endpoint deleted before deadline; fresh endpoint and ENI inventories verified absence | DELETED — VERIFIED |
+| Phase 7 low-stock Lambda execution role           | `order-platform-phase7-low-stock-lambda-role`; trust limited to `lambda.amazonaws.com`; required learning tags present; zero managed policies; one inline `order-platform-phase7-low-stock-lambda-access` policy with AWS-required ENI actions, exact log group, exact managed DB secret, exact report-object prefix, and exact SES sender identity | Global IAM resource used in `ap-south-1` | No residual IAM charge after deletion | Inline policy deleted first; role deleted; fresh Phase 7/low-stock role inventory verified absence | DELETED — VERIFIED |
+| Phase 7 low-stock Lambda log group                | `/aws/lambda/order-platform-phase7-low-stock-report`; contained failure/success proof logs with one-day retention | `ap-south-1` | No residual log storage after deletion; prior ingestion may appear later | Log group deleted; fresh exact-prefix inventory verified absence | DELETED — VERIFIED |
+| Phase 7 Scheduler dead-letter queue               | `order-platform-phase7-low-stock-scheduler-dlq`; contained one diagnosed `AccessDeniedException` controlled-failure message | `ap-south-1` | No residual queue/message state after deletion; prior requests may appear later | Queue deleted with test message; exact Phase 7 queue-prefix inventory verified absence | DELETED — VERIFIED |
+| Phase 7 low-stock Scheduler execution role        | `order-platform-phase7-low-stock-scheduler-role`; scoped trust and inline target/DLQ policy used for success/failure proofs | Global IAM resource used in `ap-south-1` | No residual IAM charge after deletion | Inline policy deleted first; role deleted; fresh Phase 7/low-stock role inventory verified absence | DELETED — VERIFIED |
+| Phase 7 low-stock Lambda function                 | `order-platform-phase7-low-stock-report`; deployed private Node.js 22 ZIP Lambda used for on-demand, idempotency, and scheduled-success proofs | `ap-south-1` | No residual function compute charge after deletion; prior invocations may appear later | Function deleted; exact Lambda inventory verified absence; managed ENI `eni-04e8eede44d17f466` later returned NotFound | DELETED — VERIFIED |
+| Accidental console-generated Lambda IAM role/policy | Role `order-platform-phase7-low-stock-report-role-k6fu5m87` under `/service-role/`, with customer-managed policy `AWSLambdaBasicExecutionRole-61e14e16-1df1-486a-8707-b6740bf99391`; created automatically when the function initially did not use the intended existing role; role was never used | Global IAM resources | No residual charge after deletion | Function switched to intended role; generated role and policy deleted; final IAM inventory verified both accidental and intended Phase 7 roles absent | DELETED — VERIFIED |
+| Phase 8 frontend S3 bucket                       | Private general-purpose bucket `order-platform-phase8-frontend-992382645171`; Block Public Access on, Bucket owner enforced, SSE-S3, versioning and website hosting off; three verified frontend objects totaling 216,737 bytes with intended content types/cache controls; anonymous read denied again at close | `ap-south-1` | Standard storage USD 0.025/GB-month for the first 50 TB; Tier 1 requests USD 0.005/1,000 and Tier 2 requests USD 0.004/10,000; current storage about USD 0.000005/month plus request usage | Intentionally retain only through 2026-09-26; final cleanup empties and deletes bucket, then verifies exact absence | RETAINED — JUSTIFIED |
+| Phase 8 manually created CloudFront OAC          | OAC `order-platform-phase8-frontend-oac` (`E201JOYWPRNJRI`); S3 origin type, always-sign SigV4a; remained unattached after the recommended-settings wizard generated and attached a second OAC | Global CloudFront resource | No residual charge after deletion | User deleted the unused OAC; fresh OAC inventory verified the exact ID absent while the attached generated OAC and viewer path remained healthy | DELETED — VERIFIED |
+| Phase 8 wizard-generated CloudFront OAC          | OAC `oac-order-platform-phase8-frontend-992382645171.s3.a-muf496ml8mt` (`E3IV91DFGUN3YF`); S3 origin type, always-sign SigV4; automatically created and attached to disabled distribution `EY6998IJC3CMS` | Global CloudFront resource | No direct OAC idle charge | Intentionally retain with the disabled distribution only through 2026-09-26; delete after the distribution during final cleanup | RETAINED — JUSTIFIED |
+| Phase 8 CloudFront distribution                  | Distribution `EY6998IJC3CMS`, AWS domain `d23gq6mlv9cjnb.cloudfront.net`; private Mumbai S3 origin, generated OAC, default root `index.html`, HTTP-to-HTTPS redirect, GET/HEAD, compression, managed CachingOptimized policy, logging off, exact tags, custom alias `stockroom.tarunapps.com`, and exact ACM certificate; remains disabled while custom-domain deployment propagates | Global CloudFront resource; S3 origin in `ap-south-1` | Covered by the active FREE flat-rate plan; no monthly plan price or overage charge while that subscription is active | Enable only for the approved HTTPS proof, disable/verify at session close, and retain/delete only under the revised review record; final cleanup requires plan cancellation before distribution deletion | RUNNING — REQUIRED |
+| Phase 8 CloudFront FREE flat-rate subscription   | Subscription `sub_3JlISIe7qHVRV49mqvjltBUs503`; CloudFront FREE tier associated with disabled distribution `EY6998IJC3CMS` and its generated WAF web ACL | Global pricing-plan resource | USD 0/month; includes 1 million requests and 100 GB transfer monthly with no overage charge; allowance is not a traffic hard stop | Intentionally retain only through 2026-09-26; cancel before distribution deletion; cancellation is immediate and remaining associated resources then use pay-as-you-go billing | RETAINED — JUSTIFIED |
+| Phase 8 wizard-generated WAF web ACL             | `CreatedByCloudFront-d0f8a502` (`9ea40cdc-aa99-45ca-a5cd-6a7298218f68`), global CloudFront-scope WAF in us-east-1 with three AWS managed rule groups and 925 WCU; attached to disabled distribution `EY6998IJC3CMS` | `us-east-1` global scope | Included at USD 0 while the FREE flat-rate subscription is active; becomes ordinary pay-as-you-go WAF usage if the subscription is cancelled while the ACL remains | Intentionally retain only with the FREE plan through 2026-09-26; during final cleanup cancel plan, promptly detach/delete ACL, and verify absence | RETAINED — JUSTIFIED |
+| Phase 8 custom-hostname ACM certificate          | Amazon-issued non-exportable RSA-2048 public certificate `16f68502-110d-4f4c-8d78-0efff4d91eb2` for exact hostname `stockroom.tarunapps.com`; issued 2026-09-26 10:06:04 IST; attached only to distribution `EY6998IJC3CMS`; ACM renewal eligibility verified ELIGIBLE; exact four tags present | `us-east-1`, required by CloudFront | Non-exportable ACM public certificate for an integrated AWS service has no additional certificate charge | Retain validation CNAME for managed renewal while in use; detach before certificate deletion during final cleanup | RUNNING — REQUIRED |
+| Phase 8 ACM validation DNS record                | DNS-only CNAME `_190db993ca2d7b9fbb96b66a70257f64.stockroom.tarunapps.com` to `_f1c38f424c3880652fbd9e67228adf4c.wzccmgtwzk.acm-validations.aws`; created manually in the Cloudflare-authoritative `tarunapps.com` zone and verified from both authoritative nameservers | Cloudflare authoritative DNS; validates ACM certificate in `us-east-1` | No expected incremental Cloudflare DNS charge | Retain while the certificate is retained/in use so ACM can renew; delete after certificate removal during final cleanup | RUNNING — REQUIRED |
+| Phase 8 custom-hostname traffic DNS record       | DNS-only CNAME `stockroom.tarunapps.com` to `d23gq6mlv9cjnb.cloudfront.net`; created manually in Cloudflare and verified from both authoritative nameservers plus a recursive resolver with 300-second TTL | Cloudflare authoritative DNS to global CloudFront | No expected incremental Cloudflare DNS charge; traffic remains under the CloudFront FREE plan while active | Retain only under the reviewed custom-hostname scope; remove before final CloudFront/domain teardown and verify absence | RUNNING — REQUIRED |
 
 Allowed status values:
 
@@ -936,4 +958,611 @@ Immediate action and result: Mandatory emergency-stop procedure activated. No Ph
 Estimated unexpected runtime cost: The automatic-start event occurred about 21:03 IST and stop completion was reflected by the new 22:04 IST restart anchor, approximately one hour of db.t4g.micro compute or about USD 0.021 before tax at the previously recorded Mumbai rate, plus any ordinary backup/API usage. Billing is delayed and may differ slightly.
 Other Phase 7 state: One previously approved SES sandbox identity remains retained for the scheduled-report proof. Phase 7 Lambda-function and Scheduler-schedule counts are zero.
 Cleanup status: VERIFIED for the unexpected RDS runtime; overall account cleanup remains PARTIAL for documented retained storage, backup, managed-secret, ECR/S3/queue/foundation state, and the temporarily retained SES identity.
+```
+
+## Phase 7 local packaging and network-design checkpoint — 2026-09-17
+
+```text
+Outcome: Local PostgreSQL repository integration passed against Docker, worker type checking passed, and the low-stock Lambda composition root was bundled locally into an ignored deployment ZIP. No deployment was attempted.
+AWS verification: Expected aws-learning Identity Center caller and Mumbai ap-south-1 verified. Retained RDS is stopped and private; its next automatic restart is 2026-09-23 22:04 IST, so review/start-stop/delete by 2026-09-22. The retained learning VPC has zero VPC endpoints and zero active/pending NAT Gateways. Zero Phase 7/low-stock Lambda functions, Scheduler schedules, Phase 7 queues, or Phase 7/low-stock S3 buckets exist.
+Local cleanup: Docker Compose reports zero running project containers.
+Retained Phase 7 state: One previously approved, tagged SES sandbox email identity remains for the scheduled-report proof. It has no idle identity charge and does not authorize another email send. Delete immediately after proof, or review/delete by 2026-09-20 if the proof is not resumed.
+Next learning checkpoint before deployment: Revisit network interfaces and ENIs; route-table VPC ownership versus subnet association; private DNS versus public DNS; Route 53 Resolver scope; and whether DNS resolution requires workload IAM permission.
+Cleanup status: VERIFIED for disposable Phase 7 runtime; overall account cleanup remains PARTIAL because the documented foundation/data and SES identity are intentionally retained.
+```
+
+## Phase 7 scheduled-report deployment approval gate — 2026-09-20
+
+```text
+Status: APPROVED by the user on 2026-09-20; no deployment resource had been created or existing resource started at this checkpoint.
+Identity and Region: Expected aws-learning Identity Center caller and Mumbai ap-south-1 freshly verified; account identifier omitted.
+Fresh baseline: Retained private Single-AZ db.t4g.micro RDS is stopped in ap-south-1b with automatic restart 2026-09-23 22:04 IST. Zero Phase 7/low-stock Lambda functions, VPC endpoints, Scheduler schedules, Phase 7 queues, or Phase 7/low-stock buckets exist. One previously approved SES sandbox identity remains. Budget reports USD 2.186 actual and USD 3.471 forecast against the USD 5 warning threshold; billing is delayed and the budget is not a cap or cleanup proof.
+Local readiness: The ignored Lambda ZIP contains index.mjs, index.mjs.map, and the AWS RDS global CA bundle. Local repository integration, focused tests, type checking, lint, formatting, composition, and packaging were previously verified.
+Approved non-hourly foundation: Dedicated Lambda and endpoint security groups; exact Lambda execution role/policy; exact Scheduler invocation role/policy; one private Phase 7 report bucket; one S3 gateway endpoint; one one-day Lambda log group; one 512-MB Node.js Lambda with no provisioned concurrency; one Scheduler DLQ; and temporary schedules required for one controlled delivery failure and one successful invocation.
+Approved cost-sensitive runtime: One Secrets Manager and one SES API interface endpoint, each in one ap-south-1b subnet/AZ for at most three started endpoint-hours; start the existing RDS instance for at most 90 running minutes; invoke Lambda at most ten times; send at most three report emails to the already verified identity.
+Billing: Interface endpoints bill per endpoint-AZ-hour with partial hours rounded to full hours plus processed data; deletion ends hourly billing. RDS compute is recorded at about USD 0.021/running hour. Lambda, S3, SES, Scheduler, SQS, Secrets Manager calls, and CloudWatch Logs are usage-billed; S3 gateway endpoints have no additional endpoint charge. No Lambda provisioned concurrency is allowed.
+Conservative incremental cap: USD 0.20 pre-tax, excluding already documented retained RDS storage/backups/managed-secret, ECR, and S3 baseline costs.
+Explicit exclusions: No NAT Gateway, Elastic/public IPv4, ECS/Fargate, load balancer, new database, new secret, production SES request, dedicated IP, Multi-AZ conversion, or Phase 8 resource.
+Break rule: Take the planned approximately 25-minute break before interface endpoints are created and before RDS is started; schedules must remain absent/disabled during the break.
+Mandatory cleanup: Disable/delete schedules first; stop RDS and verify stopped with a new automatic-restart deadline; delete both interface endpoints and verify endpoint ENIs absent; delete the S3 gateway endpoint; delete Lambda/log group, temporary roles/policies, DLQ/messages, report object/bucket, and temporary security groups/rules; delete the retained SES identity; verify zero Phase 7 Lambda, schedules, endpoints, queues, buckets, and SES identities; record delayed-billing caveat and separate disposable-runtime versus overall cleanup status.
+Approval: User explicitly approved this complete scope, USD 0.20 cap, maximum 90-minute RDS runtime, maximum three started hours per interface endpoint, maximum ten Lambda invocations, maximum three report emails, controlled Scheduler failure/success proof, and mandatory cleanup.
+```
+
+## Phase 7 scheduled-report network security checkpoint — 2026-09-20
+
+```text
+Configuration verification: The retained Phase 5 database security group permits inbound PostgreSQL/TCP 5432 from both the existing ECS task security group and the dedicated Phase 7 low-stock Lambda security group. The Phase 7 Lambda security group has no inbound rules and limits outbound database access to the database security group, HTTPS access to the endpoint security group, and HTTPS access to the Mumbai S3 managed prefix list. The endpoint security group accepts inbound HTTPS/TCP 443 only from the Lambda security group and has no outbound rules; stateful return traffic is implicit.
+Cost/state: Security-group rules have no direct service charge. No Lambda, VPC endpoint, S3 bucket, schedule, queue, or other Phase 7 runtime resource was created by this checkpoint, and RDS was not started.
+Cleanup obligation: Remove the temporary database ingress rule and delete both Phase 7 security groups after dependent Lambda and endpoint ENIs are removed; verify their exact absence at Phase 7 close.
+Status: CREATED — CONFIGURATION VERIFIED
+```
+
+## Phase 7 scheduled-report pre-runtime breakpoint — 2026-09-20
+
+```text
+Verified foundation: Dedicated Lambda and endpoint security groups, private report bucket, restricted S3 gateway endpoint, scoped Lambda and Scheduler roles, one-day Lambda log group, encrypted one-day Scheduler DLQ, and the fully configured Lambda function exist. The deployed ZIP hash matches the local artifact. Lambda is attached only to private-b through its dedicated security group and has all intended non-secret environment settings.
+Runtime state: Lambda has zero log streams and has not been invoked. Provisioned concurrency and function URL are absent. Scheduler schedules and interface endpoints remain absent. RDS remains stopped with automatic restart scheduled for 2026-09-23 22:04 IST.
+Cost state: No approved hourly interface-endpoint or RDS runtime window has started. Existing foundation has no fixed hourly compute charge; ordinary storage/request charges remain as documented.
+Next action: Take the planned approximately 25-minute break. After resuming, create the one-AZ Secrets Manager and SES interface endpoints, start the maximum-three-hour endpoint clocks, then start RDS only when immediate invocation testing is ready.
+Cleanup status: PARTIAL because the documented Phase 7 foundation is intentionally retained for same-session proof; no paid runtime cleanup is currently required.
+```
+
+## Phase 7 scheduled-report paid-runtime checkpoint — 2026-09-20
+
+```text
+Interface endpoints: Secrets Manager endpoint vpce-0ad015aafe865fe0a became available with its one private-b ENI; conservative clock start 22:03:18 IST and hard delete deadline 01:03:18 IST on 2026-09-21. SES API endpoint vpce-0e4900f2311bebc99 was created at 22:10:47 IST, then corrected from zero subnets/default SG to one private-b ENI and the dedicated endpoint SG; conservative hard delete deadline 01:10:47 IST on 2026-09-21.
+RDS runtime: CloudTrail records StartDBInstance for order-platform-phase5-postgres at 21:59:05 IST. The instance is available, private, Single-AZ db.t4g.micro in ap-south-1b with the retained database SG. The approved 90-minute maximum gives a hard stop-request deadline of 23:29:05 IST on 2026-09-20.
+RDS stop checkpoint: User submitted Stop temporarily before the deadline; state was `stopping` and private at 23:11:19 IST and later verified `stopped`. The next automatic restart is 2026-09-27 23:16:38 IST, so review/stop/delete by 2026-09-26. The restart anchor implies stop completion around 23:16:38 IST and approximately 77 minutes 33 seconds from the conservative 21:59:05 start event, below the approved 90-minute maximum. CloudTrail had not yet indexed the new StopDBInstance event at the initial stop check.
+Current proof state: Lambda remains configured but not yet invoked; schedules remain absent. Proceed directly to on-demand proof, Scheduler success/failure evidence, then disable/delete schedules first and stop RDS before endpoint cleanup.
+Cleanup status: NOT YET DUE — PAID RUNTIME ACTIVE; mandatory same-session cleanup remains required.
+```
+
+## Phase 7 low-stock first-invocation failure — 2026-09-20
+
+```text
+Invocation budget: Invocation 1 of maximum 10 used.
+Observed failure: Lambda initialization failed before the exported handler ran with `Dynamic require of "node:https" is not supported`, originating from bundled CommonJS Smithy/AWS SDK code inside the ESM index.mjs artifact.
+Root cause: The esbuild ESM bundle did not provide a Node createRequire bridge for bundled CommonJS dependencies that dynamically require built-in modules.
+Impact evidence: One Lambda log stream exists. The report bucket contains zero low-stock objects, so the orchestration did not reach S3 or SES and no report email was sent. RDS and both interface endpoints remain active under their existing deadlines.
+Repair: Rebuilt the ignored deployment artifact with an ESM banner importing createRequire from node:module and defining require from import.meta.url; Node syntax validation passed; the loose and ZIP-embedded index.mjs hashes matched. Uploaded ZIP size 1,147,773 bytes and base64 SHA-256 `VUPjELN/uONUrlXSH6Dcr7RZxn0y5bkQOAr4/HzyiSY=` exactly match Lambda. Application source behavior was unchanged.
+Status: FAILURE DIAGNOSED — REPAIRED ARTIFACT VERIFIED; ONE RETRY PENDING
+```
+
+## Phase 7 low-stock on-demand success — 2026-09-20
+
+```text
+Invocation budget: Invocation 2 of maximum 10 used.
+Result: Request 6877a4d6-5b1f-4546-814c-157225e8ef94 completed successfully. Handler duration was 410.29 ms; billed duration 956 ms including 545.41 ms initialization; configured memory 512 MB and maximum used 116 MB.
+Evidence: Structured logs show invocation started and completed. S3 object reports/low-stock/2026-09-20.json exists at 442 bytes with application/json content type, AES256 SSE-S3 encryption, and ETag 067e5a76daab3d4d543c847f9a3d3a5c. Scheduler DLQ remains empty. RDS remains available. The user confirmed that the SES report email arrived and its short-lived presigned S3 link successfully opened the private report object; SendEmail was not returned by CloudTrail Event History.
+Next proof: Invoke the identical reporting period once more, expecting storageOutcome already-exists and an unchanged S3 ETag/LastModified; this intentionally consumes one additional invocation and up to one additional approved report email.
+Duplicate-period evidence: Invocation 3 of maximum 10, request 8a692d18-c800-4965-91ba-1bd5b40899df, completed successfully in 479.02 ms with 480 ms billed duration and no cold-start initialization. Afterward, the object retained the original 2026-09-20T17:14:09Z LastModified value, ETag 067e5a76daab3d4d543c847f9a3d3a5c, 442-byte size, application/json type, and AES256 encryption. This verifies the conditional S3 write prevented a conflicting overwrite for the same reporting period.
+Status: ON-DEMAND EXECUTION AND DUPLICATE-PERIOD IDEMPOTENCY VERIFIED
+```
+
+## Phase 7 one-time Scheduler success checkpoint — 2026-09-20
+
+```text
+Schedule: order-platform-phase7-low-stock-success in the default group; created 23:00:18 IST; enabled for one-time execution at 23:05:00 Asia/Calcutta (IANA alias of Asia/Kolkata); flexible window off; ActionAfterCompletion DELETE.
+Target: Exact low-stock Lambda ARN using the scoped Scheduler role; input uses the Scheduler context value `<aws.scheduler.scheduled-time>`; exact Scheduler DLQ configured; maximum event age 60 seconds. AWS saved zero retry attempts on this success schedule, so the controlled-failure schedule will carry the required one-retry configuration instead.
+Tag note: EventBridge Scheduler supports tags on schedule groups, not individual schedules; the default group is used and no schedule-level tags exist.
+Observed effect: Scheduler invoked Lambda as invocation 4 of maximum 10 at 23:05 IST. Request 3e6ab019-44d1-43be-a93e-57b4b114ca22 completed in 389.14 ms with 913 ms billed duration, 523.49 ms initialization, and 117 MB maximum memory. The same-period S3 object retained its original LastModified, ETag, and 442-byte size; the DLQ remained empty. GetSchedule returned ResourceNotFound afterward, verifying ActionAfterCompletion DELETE removed the schedule.
+Status: SCHEDULED SUCCESS VERIFIED — SCHEDULE AUTO-DELETED
+```
+
+## Phase 7 controlled Scheduler delivery failure — 2026-09-20
+
+```text
+Failure injection: Removed only lambda:InvokeFunction from the existing Scheduler role inline policy while preserving exact sqs:SendMessage permission to the Scheduler DLQ. The role trust policy remains scoped to this account and the default schedule group.
+Schedule: order-platform-phase7-low-stock-failure; enabled one-time execution at 23:20:00 Asia/Calcutta; flexible window off; exact Lambda target and Scheduler context payload; 60-second maximum event age; exactly one retry; exact DLQ; ActionAfterCompletion DELETE.
+Observed result: DLQ message 8a104881-5755-4d08-8962-7dd67553b584 recorded `AccessDeniedException` because the assumed Scheduler role had no identity-based permission for `lambda:InvokeFunction` on the exact function. The payload was valid and not truncated; execution id 676ab01c-c8ff-48ee-be78-78ea04ac445e and scheduled time 2026-09-20T17:50:00Z were preserved. No new Lambda log stream appeared, proving the function did not run. The schedule auto-deleted. One retry was configured, but the DLQ message reports `RETRY_ATTEMPTS` 0; the 60-second event-age limit expired before an actual retry, demonstrating that the retry setting is a maximum rather than a guarantee.
+Status: CONTROLLED DELIVERY FAILURE AND DLQ DIAGNOSIS VERIFIED — TEST MESSAGE PENDING CLEANUP
+```
+
+## Phase 7 scheduled-report final close-out — 2026-09-20
+
+```text
+Cleanup action: Disabled/deleted temporary schedules first, stopped the retained RDS instance, then removed the three VPC endpoints, Lambda function/log group, report object/bucket, Scheduler DLQ/message, SES identity, temporary IAM policies/roles, temporary database ingress rule, and both temporary security groups. The Lambda-managed ENI was allowed to detach normally and was later verified absent.
+AWS verification: Fresh ap-south-1/account inventories contain zero Phase 7/low-stock Lambda functions, Lambda log groups, S3 buckets, SQS queues, SES identities, Scheduler schedules, IAM roles, SNS topics, custom EventBridge buses/rules, VPC endpoints, endpoint/Lambda ENIs, or Phase 7 security groups. The private route table contains only the VPC-local route. The retained database security group again permits PostgreSQL only from the retained ECS task security group. A broader runtime sweep also found zero ECS services/running/pending tasks, load balancers, target groups, active NAT Gateways, Elastic IPs, or public ENIs; the empty Phase 4 ECS cluster remains as retained foundation.
+Retained state: The existing Phase 5 RDS instance is intentionally retained, stopped, private, and storage/backup/managed-secret charges continue. Its next automatic restart is 2026-09-27 23:16:38 IST; review and stop again or delete by 2026-09-26. The locally ignored Lambda deployment ZIP remains only as a local learning artifact and has no AWS cost.
+Cost note: RDS ran for approximately 77 minutes 33 seconds, below the approved 90-minute cap. Interface endpoints were deleted before their three-hour limits. Prior RDS, interface-endpoint, Lambda, S3, SQS, SES, Scheduler, CloudWatch Logs, EventBridge, and SNS usage can appear later because billing is delayed. Delivered emails cannot be recalled.
+Disposable Phase 7 cleanup status: VERIFIED
+Overall account cleanup status: PARTIAL — documented retained foundation/data remains, including stopped RDS storage/backups/managed secret, and must continue to follow its review deadline.
+```
+
+## Phase 8 static-edge deployment approval gate — 2026-09-24
+
+```text
+Status: APPROVED by the user on 2026-09-24; no Phase 8 AWS resource had been created at this checkpoint.
+Identity and Region: Expected aws-learning Identity Center caller and Mumbai ap-south-1 freshly verified. CloudFront is global; its private S3 origin will remain in ap-south-1.
+Fresh baseline: Zero CloudFront distributions, zero viewer ACM certificates in us-east-1, zero Phase 8/frontend S3 buckets, zero load balancers, zero ECS services, and zero running ECS tasks. The retained private RDS instance is stopped with automatic restart 2026-09-27 23:16:38 IST, so review/start-stop/delete by 2026-09-26. Budget reports USD 2.812 actual and USD 3.563 forecast against the USD 5 warning threshold; billing is delayed and the budget is not a cap or cleanup proof.
+Local readiness: The production frontend build contains index.html plus one hashed JavaScript and one hashed CSS asset, approximately 217 KB total. The bundle uses the intended relative /api base and contains no localhost, 127.0.0.1, or hard-coded backend endpoint.
+Approved resources: One private general-purpose S3 bucket named order-platform-phase8-frontend-992382645171; one OAC named order-platform-phase8-frontend-oac using always-signed requests; and one pay-as-you-go CloudFront distribution commented order-platform-phase8-frontend using the AWS-provided hostname, Price Class 200, default root index.html, HTTP-to-HTTPS redirect, and GET/HEAD only.
+Object policy: index.html uses Content-Type text/html and Cache-Control no-cache. The hashed JavaScript and CSS assets use their correct content types and Cache-Control public,max-age=31536000,immutable. No invalidation is planned for this session.
+Security: All S3 Block Public Access settings remain enabled; Bucket owner enforced; website hosting and versioning disabled; SSE-S3 enabled. The bucket is readable only through CloudFront OAC after its exact distribution-scoped bucket policy is installed.
+Billing: S3 storage and requests and CloudFront requests/data transfer are usage-billed. CloudFront pay-as-you-go has no fixed hourly distribution charge and eligible usage may fall within its monthly free allowance, which is not a spending cap. Expected S3 storage is about USD 0.000005/month and three upload PUTs about USD 0.000015. Conservative incremental session cap is USD 0.05 pre-tax.
+Explicit exclusions: No ACM certificate, custom DNS, Cloudflare change, ALB, ECS/Fargate runtime, RDS start, WAF, CloudFront access logging, S3 website endpoint, public bucket access, or invalidation.
+Session-close cleanup: Disable the distribution; wait until status is Deployed and Enabled is false; verify its public hostname no longer serves; verify the bucket remains private; retain only the disabled distribution, OAC, private bucket, and three small files through 2026-09-26; re-verify the retained RDS instance is stopped before its automatic-restart deadline.
+Final removal: Disable and delete the distribution, delete the OAC, empty and delete the bucket, then freshly verify all exact Phase 8 resources absent. If the lesson is not resumed, perform this by the 2026-09-26 review date.
+Approval: User explicitly approved this complete scope, USD 0.05 cap, stated exclusions, session-close disablement and verification, and temporary retention through 2026-09-26.
+```
+
+## Phase 8 private frontend bucket checkpoint — 2026-09-24
+
+```text
+Resource: order-platform-phase8-frontend-992382645171, created manually by the user in ap-south-1.
+Verified configuration: General-purpose bucket; BucketOwnerEnforced ownership; all four S3 Block Public Access controls true; default AES256 SSE-S3 encryption; versioning unconfigured/disabled; exact four learning tags present.
+Negative verification: S3 returned NoSuchWebsiteConfiguration and NoSuchBucketPolicy, confirming website hosting and a bucket policy are absent. No frontend objects had been uploaded at this checkpoint.
+Cost/cleanup: Only S3 request usage exists while empty. The approved three-object upload is expected to add approximately 217 KB. Verify privacy at session close, retain only through 2026-09-26, then empty/delete and verify absence during final removal.
+Status: CREATED — PRIVATE CONFIGURATION VERIFIED; UPLOAD PENDING
+```
+
+## Phase 8 frontend object-upload checkpoint — 2026-09-24
+
+```text
+Inventory: Exactly the intended keys are present: index.html at 588 bytes, assets/index-BIgNoBro.js at 207,694 bytes, and assets/index-ne3Eu0rz.css at 8,455 bytes; total 216,737 bytes.
+Metadata: index.html is text/html with Cache-Control no-cache. The JavaScript is application/javascript and the CSS is text/css; both use Cache-Control public,max-age=31536000,immutable.
+Encryption/privacy: Every object reports AES256 SSE-S3. All four bucket-level Block Public Access controls remain true. An unsigned HeadObject request for index.html returned 403 Forbidden, verifying anonymous access is denied.
+Cost/cleanup: Three upload PUT requests and approximately 0.000202 GB of storage were added within the approved USD 0.05 session cap. Retain only under the approved Phase 8 review date and cleanup procedure.
+Status: UPLOAD AND PRIVATE-ACCESS BOUNDARY VERIFIED; OAC/DISTRIBUTION PENDING
+```
+
+## Phase 8 CloudFront OAC checkpoint — 2026-09-24
+
+```text
+Resource: order-platform-phase8-frontend-oac, ID E201JOYWPRNJRI, created manually by the user.
+Verified configuration: Origin type s3; SigningBehavior always; SigningProtocol sigv4a; intended description present. The current AWS CLI reference accepts both sigv4 and sigv4a, although some older Developer Guide examples still show only sigv4.
+Security effect: The OAC has no S3 permission by itself. Access remains denied until it is attached to an exact distribution and a distribution-scoped bucket policy is installed.
+Cost/cleanup: OAC has no direct idle charge. Retain only with the approved disabled distribution through 2026-09-26; delete after the distribution during final cleanup.
+Status: CREATED — CONFIGURATION VERIFIED; DISTRIBUTION ATTACHMENT PENDING
+```
+
+## Phase 8 initial CloudFront distribution verification — 2026-09-24
+
+```text
+Distribution: EY6998IJC3CMS, domain d23gq6mlv9cjnb.cloudfront.net, deployed and enabled. The private Mumbai S3 origin, HTTP-to-HTTPS redirect, GET/HEAD-only behavior, compression, managed CachingOptimized policy, default CloudFront viewer certificate, disabled logging, no alternate domains, no functions/Lambda@Edge, and exact five tags were verified.
+Private-origin policy: The wizard installed an exact S3 read-only policy for cloudfront.amazonaws.com conditioned by the distribution ARN. The distribution uses generated OAC E3IV91DFGUN3YF with always-sign SigV4. The previously created OAC E201JOYWPRNJRI remains unattached and must be reconciled.
+Initial configuration gaps: DefaultRootObject was empty, so / did not map to index.html. PriceClass was PriceClass_All rather than the initially approved PriceClass_200; PriceClass_All is part of the subsequently selected FREE flat-rate plan decision.
+Viewer proof: Before correction, HTTPS / returned 403 Error from cloudfront/S3 as predicted from the missing default root object. After the user set DefaultRootObject to index.html and deployment completed, HTTPS / returned 200 with text/html, 588 bytes, AES256 and Cache-Control no-cache. HTTPS /index.html and the hashed JavaScript also returned 200 with their intended metadata. Successful requests traversed CloudFront at the Hyderabad edge and reached the private S3 origin through OAC.
+Automatic resources: The wizard attached WAF web ACL CreatedByCloudFront-d0f8a502 with three AWS managed rule groups and created FREE flat-rate subscription sub_3JlISIe7qHVRV49mqvjltBUs503 associating the distribution and WAF.
+Cost evidence: CloudTrail CreateSubscription records planFamily CloudFront, planTier FREE, approvalMode IMMEDIATE, and the exact distribution/WAF resources. The plan is USD 0/month with no overage charge while active. If cancelled, the distribution and still-attached WAF revert to pay-as-you-go billing; prompt WAF detach/delete is therefore required if returning to the originally approved no-WAF design.
+Decision required: Either explicitly revise the lesson to retain the FREE plan/bundled WAF, or cancel the FREE plan and correct the resources to the approved pay-as-you-go, no-WAF, PriceClass_200 configuration. No corrective mutation has been performed.
+Status: DEPLOYED — SAFE UNDER FREE PLAN; CONFIGURATION DECISION REQUIRED
+```
+
+## Phase 8 OAC reconciliation checkpoint — 2026-09-24
+
+```text
+Cleanup: The user deleted only the unused manually created OAC E201JOYWPRNJRI. It held no data and was never attached to the distribution.
+Verification: Fresh CloudFront OAC inventory contains only E3IV91DFGUN3YF, the wizard-generated always-sign SigV4 OAC. Distribution EY6998IJC3CMS is Deployed and Enabled, references that exact OAC, and has DefaultRootObject index.html.
+Viewer regression check: HTTPS / returned 200 text/html, 588 bytes, AES256 and Cache-Control no-cache. X-Cache RefreshHit from CloudFront at the Hyderabad edge confirms the private-origin viewer path remained healthy after cleanup.
+Status: UNUSED OAC DELETED — ATTACHED OAC AND SITE VERIFIED
+```
+
+## Phase 8 static-edge session close-out — 2026-09-24
+
+```text
+CloudFront shutdown: The user disabled distribution EY6998IJC3CMS. Fresh verification reached Status Deployed with Enabled false. A subsequent HTTPS request could not resolve d23gq6mlv9cjnb.cloudfront.net, confirming the public hostname no longer served the application.
+Private storage: All four S3 Block Public Access controls remain true. An unsigned HeadObject request for index.html returned 403 Forbidden. The retained bucket contains exactly three intended objects totaling 216,737 bytes.
+Runtime sweep: The retained RDS instance remains stopped and private with automatic restart 2026-09-27 23:16:38 IST; review/stop/delete by 2026-09-26. The retained ECS cluster has zero services and zero running tasks. Mumbai has zero load balancers.
+Intentionally retained through 2026-09-26: Disabled CloudFront distribution EY6998IJC3CMS; attached OAC E3IV91DFGUN3YF; FREE flat-rate subscription sub_3JlISIe7qHVRV49mqvjltBUs503; bundled WAF web ACL 9ea40cdc-aa99-45ca-a5cd-6a7298218f68; private S3 bucket and its three frontend objects.
+Residual cost: CloudFront FREE plan and bundled WAF are USD 0/month while the subscription remains active; disabled distribution and OAC have no direct idle charge under that plan. S3 storage is approximately USD 0.000005/month plus ordinary request usage. Existing stopped-RDS storage/backups/managed-secret and other documented retained-foundation costs continue separately.
+Final-removal order: Cancel the FREE plan first; promptly detach/delete the WAF before ordinary pay-as-you-go WAF usage can accumulate; delete the disabled distribution; delete the OAC; empty and delete the bucket; verify every exact resource absent. Recheck RDS before its automatic-restart deadline.
+Disposable hourly runtime cleanup: VERIFIED — no ECS tasks/services, load balancers, or running RDS compute.
+Overall account cleanup: PARTIAL — explicitly retained low-cost Phase 8 resources and pre-existing foundation/data remain, with review/delete date 2026-09-26.
+```
+
+## Phase 8 custom-hostname approval gate — 2026-09-26
+
+```text
+Status: APPROVED by the user on 2026-09-26; no ACM certificate or Cloudflare DNS record for the selected hostname existed at this checkpoint.
+Identity and state: Expected aws-learning Identity Center caller and account verified. Distribution EY6998IJC3CMS is Deployed and disabled; its FREE flat-rate plan, bundled WAF, attached OAC, private S3 bucket, and three frontend objects remain. Zero ECS services/running tasks and zero load balancers exist. Retained RDS is stopped/private with automatic restart 2026-09-27 23:16:38 IST.
+Selected hostname: stockroom.tarunapps.com under the active Cloudflare-authoritative tarunapps.com zone.
+Approved resources and changes: One exact-name non-exportable ACM public certificate for stockroom.tarunapps.com in us-east-1 using DNS validation; one ACM validation CNAME in Cloudflare set DNS only; attach the issued certificate and exact alternate hostname to the existing CloudFront distribution; one traffic CNAME stockroom.tarunapps.com to d23gq6mlv9cjnb.cloudfront.net set DNS only; temporarily enable the existing distribution for HTTPS/DNS verification and disable it again at session close.
+Billing: ACM public certificates used with CloudFront have no additional certificate charge. The existing CloudFront FREE plan and bundled WAF remain USD 0/month while active; Cloudflare DNS records have no expected incremental charge; S3 storage remains approximately USD 0.000005/month plus ordinary requests. Conservative incremental cap is USD 0.05 pre-tax.
+Explicit exclusions: No Cloudflare proxying, wildcard certificate, apex-domain change, Route 53 hosted zone, ALB, ECS/Fargate runtime, RDS start, NAT Gateway, public IPv4, new WAF, logging, alarm, or Phase 9 resource.
+Security: Both Cloudflare records begin DNS only. The validation record proves domain control and remains for ACM managed renewal while the certificate is retained. The traffic CNAME only directs the selected subdomain; existing apex and unrelated DNS records remain unchanged.
+Session-close procedure: Disable CloudFront, wait for Deployed with Enabled false, and verify the custom hostname no longer serves. Inventory and record the certificate and both DNS records. Retain only explicitly reviewed no/low-cost resources with a new review/delete date; separately resolve the retained RDS automatic-restart deadline before ending the session.
+Final-removal order: Remove the traffic CNAME; cancel the CloudFront FREE plan; promptly detach/delete bundled WAF if it leaves plan coverage; delete the disabled distribution; delete attached OAC; empty/delete the frontend bucket; delete the ACM certificate after detachment; remove the ACM validation CNAME; verify all exact resources absent.
+Approval: User explicitly approved this hostname, USD 0.05 cap, no-runtime scope, DNS-only design, and mandatory verification/cleanup procedure.
+```
+
+## Phase 8 ACM request checkpoint — 2026-09-26
+
+```text
+Certificate: arn:aws:acm:us-east-1:992382645171:certificate/16f68502-110d-4f4c-8d78-0efff4d91eb2 for exact hostname stockroom.tarunapps.com.
+Verified configuration: Amazon-issued, non-exportable, RSA-2048, DNS validation, PENDING_VALIDATION, not attached to any resource. Non-exportable public certificates used with CloudFront have no additional certificate charge.
+Validation CNAME: Name _190db993ca2d7b9fbb96b66a70257f64.stockroom.tarunapps.com. and target _f1c38f424c3880652fbd9e67228adf4c.wzccmgtwzk.acm-validations.aws. No Cloudflare record had been created by this checkpoint.
+Tag correction: The user replaced AutoCleanupx with AutoCleanup=false; a fresh ACM tag query verified all four exact learning tags.
+DNS proof: The user created the exact validation CNAME as DNS only in Cloudflare. Both authoritative nameservers, ariella.ns.cloudflare.com and merlin.ns.cloudflare.com, returned the expected CNAME target. An earlier recursive lookup returned NXDOMAIN because of negative caching; no record correction was needed.
+Status: CREATED — TAGS AND AUTHORITATIVE DNS VERIFIED; ACM ISSUANCE PENDING
+```
+
+## Phase 8 ACM issuance checkpoint — 2026-09-26
+
+```text
+Result: ACM status ISSUED and domain validation status SUCCESS at 2026-09-26 10:06:04 IST. Certificate expiry is 2027-04-12 05:29:59 IST under the current 198-day public-certificate lifetime.
+DNS evidence: Both Cloudflare authoritative nameservers returned the exact validation CNAME. ACM issuance followed without any DNS correction.
+Usage state: InUseBy is empty and renewal eligibility is currently INELIGIBLE because the certificate has not yet been attached to an integrated AWS service. The validation CNAME remains required for managed renewal after attachment.
+Status: ISSUED — CLOUDFRONT ATTACHMENT PENDING
+```
+
+## Phase 8 CloudFront certificate-attachment checkpoint — 2026-09-26
+
+```text
+Distribution update: EY6998IJC3CMS now has exact alias stockroom.tarunapps.com and exact ACM certificate 16f68502-110d-4f4c-8d78-0efff4d91eb2, using sni-only and minimum protocol policy TLSv1.2_2021. The distribution remained Enabled false during deployment.
+ACM verification: InUseBy contains only the intended CloudFront distribution ARN and RenewalEligibility changed to ELIGIBLE.
+Traffic safety: No stockroom traffic CNAME has been created. CloudFront status remained InProgress at this checkpoint, so DNS routing and enablement are intentionally deferred until status Deployed.
+Status: CONFIGURATION VERIFIED — GLOBAL DEPLOYMENT IN PROGRESS
+```
+
+## Phase 8 custom-hostname traffic-DNS checkpoint — 2026-09-26
+
+```text
+Record: stockroom.tarunapps.com CNAME d23gq6mlv9cjnb.cloudfront.net, TTL 300 seconds, created manually by the user in the Cloudflare-authoritative tarunapps.com zone.
+Verification: Both ariella.ns.cloudflare.com and merlin.ns.cloudflare.com returned the exact CNAME target. A recursive resolver returned the same CNAME. Returning the CloudFront hostname rather than Cloudflare anycast addresses confirms DNS-only mode.
+CloudFront readiness: Distribution EY6998IJC3CMS was Deployed with the exact alias and ACM certificate, but remained disabled at this checkpoint. Therefore DNS was correct while application traffic was intentionally unavailable.
+Status: DNS VERIFIED — TEMPORARY CLOUDFRONT ENABLEMENT PENDING
+```
+
+## Phase 8 custom-hostname live verification — 2026-09-26
+
+```text
+CloudFront state: Distribution EY6998IJC3CMS reached Deployed with Enabled true. Its only alternate hostname is stockroom.tarunapps.com; it uses the intended ACM certificate, sni-only, TLSv1.2_2021, and default root object index.html.
+DNS: Public resolver 1.1.1.1 returned stockroom.tarunapps.com CNAME d23gq6mlv9cjnb.cloudfront.net and the CloudFront IPv4/IPv6 addresses. This continues to prove Cloudflare DNS-only routing. The workstation resolver still held an earlier negative response, so viewer tests pinned the public CloudFront edge IP while preserving stockroom.tarunapps.com as the HTTP Host and TLS SNI name.
+Viewer/TLS proof: HTTP / returned 301 to https://stockroom.tarunapps.com/. HTTPS / returned 200 text/html with 588 bytes through the Hyderabad CloudFront edge and Amazon S3 origin. curl certificate verification returned ssl_verify_result 0, proving the ACM-backed certificate was trusted and valid for the requested hostname.
+Caching: index.html returned Cache-Control no-cache as intended. The hashed JavaScript returned 200 application/javascript and Cache-Control public,max-age=31536000,immutable. These command-line requests reported Miss from cloudfront; earlier browser evidence reported Hit from cloudfront, so cacheability and an actual edge hit have both been demonstrated.
+Origin privacy: An unsigned HeadObject for the Mumbai S3 index.html object returned 403 Forbidden while the same object remained available through CloudFront, verifying the OAC/private-origin boundary.
+Cost/runtime: No ALB, ECS/Fargate, RDS start, NAT Gateway, public IPv4, new WAF, logging, or other hourly runtime was created. The existing FREE CloudFront plan and bundled WAF remain USD 0/month while the subscription is active; ordinary S3 and request usage remains within the approved USD 0.05 cap.
+Status: CUSTOM DNS, ACM TLS, REDIRECT, PRIVATE ORIGIN, AND STATIC DELIVERY VERIFIED; SESSION-CLOSE DISABLEMENT STILL REQUIRED
+```
+
+## Phase 8 custom-hostname session close-out — 2026-09-26
+
+```text
+CloudFront shutdown: The user disabled distribution EY6998IJC3CMS. Fresh AWS verification reached Status Deployed with Enabled false. A viewer request preserving stockroom.tarunapps.com as both HTTP Host and TLS SNI failed during TLS negotiation, confirming the disabled distribution no longer serves the application.
+Private storage: The retained Mumbai frontend bucket contains only the three intended objects totaling 216,737 bytes. An unsigned HeadObject request for index.html returned 403 Forbidden.
+Runtime sweep: Account 992382645171 was re-verified. The retained ECS cluster has zero services and zero running tasks, Mumbai has zero load balancers, and the RDS instance remains stopped and private. Its automatic restart remains scheduled for 2026-09-27 23:16:38 IST.
+Retained hostname resources: The DNS-only traffic CNAME and ACM validation CNAME remain in Cloudflare. The ACM certificate remains ISSUED, ELIGIBLE for renewal, attached only to the intended disabled distribution, and expires 2027-04-12 under its current issuance.
+Retained Phase 8 AWS resources: Disabled distribution EY6998IJC3CMS, OAC E3IV91DFGUN3YF, FREE subscription sub_3JlISIe7qHVRV49mqvjltBUs503, bundled WAF 9ea40cdc-aa99-45ca-a5cd-6a7298218f68, private frontend bucket and three objects, and the ACM certificate. The FREE plan/bundled WAF remain USD 0/month while plan coverage stays active; S3 storage remains approximately USD 0.000005/month plus tiny request usage; ACM adds no certificate charge.
+Disposable hourly runtime cleanup: VERIFIED — CloudFront disabled; no ECS tasks/services or load balancers; RDS compute stopped.
+Overall account cleanup: PARTIAL — retained low-cost Phase 8 resources and pre-existing foundation/data remain. Their prior review date is today and must be explicitly extended or the resources must be removed. The RDS auto-restart deadline must be resolved before 2026-09-27 23:16:38 IST.
+```
+
+## Phase 8 same-origin API approval gate — 2026-09-27
+
+```text
+Status: APPROVED by the user for a two-hour session with a conservative USD 0.25 incremental cap.
+Identity and baseline: Expected aws-learning Identity Center caller and account 992382645171 verified; primary Region ap-south-1. CloudFront EY6998IJC3CMS is Deployed and disabled. The retained ECS cluster has zero services/tasks, Mumbai has zero load balancers, and RDS order-platform-phase5-postgres is stopped/private with automatic restart scheduled for 2026-09-27 23:16:38 IST. Budget reports USD 3.136 actual and USD 3.617 forecast against the USD 5 warning budget; billing data is delayed and the budget is not a cap.
+Approved design: Keep stockroom.tarunapps.com as the DNS-only viewer hostname. Add a DNS-only custom ALB-origin hostname, one exact-name non-exportable ACM public certificate in ap-south-1 with DNS validation, a temporary public ALB/HTTPS listener/IP target group, one temporary ECS API service/task, and CloudFront /api/* routing to the HTTPS ALB origin with API caching disabled. Start the private RDS instance only for active verification.
+Billing: Running RDS, ALB capacity, Fargate CPU/memory, ALB and task public IPv4 addresses, logs, requests, and transfer are usage-billed. ACM public certificates used with an integrated AWS service and Cloudflare DNS records have no expected incremental charge. ALB, task/public IPv4, and RDS compute accrue while active even when idle.
+Session-close action: Disable CloudFront and wait for Deployed/Enabled false; delete the ECS service/tasks and verify task ENIs/public IPv4 absent; delete ALB/listeners/target group and verify ALB ENIs/public IPv4 absent; stop RDS and verify stopped with a refreshed automatic-restart deadline; delete disposable logs; inventory any retained ACM/DNS/CloudFront configuration and assign a review date.
+Verification: Fresh AWS API inventories, not console closure, will prove zero ECS runtime and load balancers, stopped RDS, disabled CloudFront, private S3, and the status of any retained certificate/DNS records.
+Explicit exclusions: No NAT Gateway, Route 53 hosted zone, Cloudflare proxying, wildcard certificate, additional WAF, Phase 9 Terraform, or unrelated infrastructure.
+Approval: The user accepted the described two-hour scope, temporary billable runtime, USD 0.25 cap, and mandatory cleanup.
+```
+
+## Phase 8 ALB-origin ACM request checkpoint — 2026-09-27
+
+```text
+Certificate: arn:aws:acm:ap-south-1:992382645171:certificate/53875af6-8342-48b1-aa80-e9f61a38f8e7 for exact hostname api-origin.tarunapps.com.
+Verified configuration: Amazon-issued, non-exportable, RSA-2048, certificate-transparency logging enabled, DNS validation, PENDING_VALIDATION, and not attached to any resource. Exact tags Project=aws-order-platform, Environment=learning, Owner=Tarun, and AutoCleanup=false were verified.
+Validation CNAME: _7b591442b1a26ba9ac2508b55553ce5c.api-origin.tarunapps.com. points to _89586d966431d24203058113c132e0f2.wzccmgtwzk.acm-validations.aws.
+Cost/cleanup: No additional certificate charge is expected when the non-exportable public certificate is used with the intended ALB. Keep the validation record DNS only for issuance and managed renewal. Delete the certificate only after it is detached and no longer needed.
+Status: CREATED AND TAGS VERIFIED — CLOUDFLARE VALIDATION RECORD PENDING
+```
+
+## Phase 8 same-origin runtime start checkpoint — 2026-09-27
+
+```text
+RDS start: The user started order-platform-phase5-postgres for the approved API integration lab. At 2026-09-27 11:54:12 IST it was available, private, and in ap-south-1b; AutomaticRestartTime was null while running. Approximate ledger compute rate is USD 0.021/running hour plus already-retained storage/backup/secret costs.
+ACM validation: Both Cloudflare authoritative nameservers returned the exact DNS-only validation CNAME. ACM domain validation reached SUCCESS while overall certificate status remained PENDING_VALIDATION at this checkpoint; no DNS correction is required.
+Mandatory close: Stop the database after active testing, wait for stopped, record the refreshed automatic-restart deadline, and verify PubliclyAccessible remains false.
+Status: RDS ACTIVE — COST TIMER RUNNING; ACM ISSUANCE PENDING
+```
+
+## Phase 8 ALB-origin certificate and target-group checkpoint — 2026-09-27
+
+```text
+Certificate result: ACM certificate 53875af6-8342-48b1-aa80-e9f61a38f8e7 reached ISSUED with DNS validation SUCCESS at 2026-09-27 11:54:07 IST. It covers only api-origin.tarunapps.com, remains unattached at this checkpoint, and expires 2027-04-13 under the current issuance. The DNS-only validation CNAME remains for managed renewal.
+Target group: order-platform-phase8-api-tg, ARN suffix 4d02f14d52312f69, IP/IPv4 target type in the intended Phase 4 VPC, HTTP/3000 and HTTP1. Health checks use HTTP /health on the traffic port, 15-second interval, 5-second timeout, healthy/unhealthy thresholds 2/2, and matcher 200.
+Tags and targets: Exact Project, Environment, Owner, and AutoCleanup=true tags verified. No targets were manually registered and no load balancer is attached yet; ECS will own task-IP registration.
+Billing/cleanup: Target groups have no separate hourly charge, but must be deleted after the temporary ALB/service exercise. The certificate has no expected additional charge while used with the intended integrated AWS service.
+Status: CERTIFICATE ISSUED; EMPTY TARGET GROUP VERIFIED — ALB PENDING
+```
+
+## Phase 8 CloudFront-to-ALB security-group checkpoint — 2026-09-27
+
+```text
+Security group: Existing order-platform-phase4-alb-sg (sg-037d90e37d307a692) was tightened before ALB creation. The prior public HTTP/80 rule from 0.0.0.0/0 was removed.
+Verified ingress: Only TCP/443 from AWS-managed CloudFront origin-facing prefix list pl-9aa247f3. AWS maintains the list's changing CIDRs while the security-group reference remains stable.
+Verified egress: Only TCP/3000 to the exact retained ECS task security group sg-09ee205b5eb8a0727. The task group reciprocally permits TCP/3000 only from this ALB group.
+Security meaning: Direct arbitrary internet sources cannot reach the ALB listener. A later listener header condition will additionally distinguish this distribution from other CloudFront distributions.
+Status: LEAST-PRIVILEGE CLOUDFRONT-TO-ALB NETWORK PATH VERIFIED
+```
+
+## Phase 8 API ALB creation checkpoint — 2026-09-27
+
+```text
+ALB: order-platform-phase8-api-alb, ARN suffix 13d1e03525f91c3e, created 2026-09-27 12:22:02 IST. It is internet-facing/IPv4 in the intended Phase 4 public subnets across ap-south-1a and ap-south-1b and uses only sg-037d90e37d307a692. State was provisioning at this checkpoint.
+Listener: HTTPS/443 only, exact regional ACM certificate 53875af6-8342-48b1-aa80-e9f61a38f8e7, and current recommended policy ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09. The default action is fixed 403 text/plain Forbidden; mutual TLS is off. No HTTP listener exists.
+Tags: Exact Project=aws-order-platform, Environment=learning, Owner=Tarun, and AutoCleanup=true tags verified.
+Origin DNS target: order-platform-phase8-api-alb-1728600586.ap-south-1.elb.amazonaws.com. The DNS-only api-origin.tarunapps.com traffic CNAME is not yet recorded at this checkpoint.
+Billing/cleanup: ALB capacity and two service-managed public IPv4 addresses are now usage-billed even with no targets/traffic. Delete the listener/ALB and target group after the exercise; wait for ALB ENIs/public IPv4 dependencies to disappear and verify fresh regional inventories empty.
+Status: ALB COST TIMER RUNNING — ORIGIN DNS, PROTECTED RULE, AND ECS TARGET PENDING
+```
+
+## Phase 8 ALB-origin traffic-DNS checkpoint — 2026-09-27
+
+```text
+Record: api-origin.tarunapps.com CNAME order-platform-phase8-api-alb-1728600586.ap-south-1.elb.amazonaws.com, TTL 300 seconds, created manually by the user in the Cloudflare-authoritative tarunapps.com zone with proxy disabled/DNS-only mode.
+Verification: Both ariella.ns.cloudflare.com and merlin.ns.cloudflare.com returned the exact CNAME target. The separate underscored ACM validation CNAME remains intact.
+ALB readiness: The ALB reached active across ap-south-1a and ap-south-1b with the exact CloudFront-restricted security group. The target group still contains zero targets, and the HTTPS listener default remains 403 until the protected rule is created.
+Status: ORIGIN DNS AND ALB ACTIVE VERIFIED — PROTECTED FORWARD/REWRITE RULE PENDING
+```
+
+## Phase 8 protected ALB listener-rule checkpoint — 2026-09-27
+
+```text
+Rule: HTTPS listener priority 10 requires both path /api/* and exact HTTP header name X-Origin-Verify with one private value. Matching requests forward to order-platform-phase8-api-tg; the default listener rule remains fixed 403.
+Rewrite: Console evidence verified URL rewrite regex ^/api/(.*)$ with replacement /$1, converting frontend paths such as /api/products into the API's expected /products path. The installed AWS CLI service model did not expose the newer Transforms response field, so console state is the transform evidence.
+Credential hygiene: An initial private header value was exposed in a screenshot before CloudFront configuration. The user generated and installed a replacement value; CloudTrail recorded ModifyRule at 2026-09-27 12:38:59 IST. The exposed value was never configured in CloudFront and is no longer accepted by the listener. The replacement value is intentionally omitted from this ledger and must not be sent in chat or committed.
+Security boundary: Network ingress requires the AWS-managed CloudFront origin-facing prefix list, and application forwarding additionally requires the distribution-specific private header. Requests failing either listener condition receive 403 and cannot reach the target group.
+Status: PROTECTED FORWARD AND PATH REWRITE CONFIGURED — CLOUDFRONT HEADER PENDING
+```
+
+## Phase 8 temporary API log-group checkpoint — 2026-09-27
+
+```text
+Log group: /aws/order-platform/phase6/api recreated as the exact dependency referenced by verified API task definition order-platform-phase5-lab:21. It uses Standard class, one-day retention, default service-side encryption with no customer KMS key, and initially stores zero bytes.
+Tags: Exact Project=aws-order-platform, Environment=learning, Owner=Tarun, and AutoCleanup=true tags verified.
+Billing/cleanup: CloudWatch Logs ingestion and retained bytes are usage-billed. Capture only sanitized evidence, then delete this temporary group after the ECS service/task is stopped and verify exact absence.
+Status: EMPTY TEMPORARY LOG DESTINATION VERIFIED — ECS SERVICE PENDING
+```
+
+## Phase 8 ECS API service checkpoint — 2026-09-27
+
+```text
+Service: Console-generated name order-platform-phase5-lab-service-sh6nhkk3 in cluster order-platform-phase4-cluster. It uses Fargate/LATEST, verified API task definition order-platform-phase5-lab:21, desired/running/pending 1/1/0, and completed deployment with zero failed tasks at 2026-09-27 12:54:10 IST. Circuit breaker and rollback are enabled with 100/200 minimum/maximum healthy percentages.
+Networking: Both intended Phase 4 public subnets are configured, assignPublicIp is enabled because no NAT Gateway or VPC endpoints exist, and only task security group sg-09ee205b5eb8a0727 is attached. Running task eee7db3a31694f70aa519759c3c739ac uses ENI eni-01ca4f54e4030ca93, private IP 10.40.0.168, and one temporary public IPv4; the public address is intentionally omitted from this ledger.
+Load balancing: Container phase5-lab port 3000 is attached to order-platform-phase8-api-tg. The target is healthy in ap-south-1a. ECS task/container status is RUNNING and connectivity CONNECTED; ECS container health is UNKNOWN because the task definition has no container-level health check, while the authoritative ALB target health is healthy.
+Tags/logs: Exact learning tags with AutoCleanup=true verified on the service. The expected ecs/phase5-lab task log stream exists in /aws/order-platform/phase6/api.
+Billing/cleanup: Fargate CPU/memory and one task public IPv4 are now usage-billed. At close, set desired count zero/delete the service, wait for task STOPPED and target unused, verify ENI/public IPv4 absent, then delete the temporary log group after sanitized evidence capture.
+Status: ECS API RUNTIME AND ALB TARGET HEALTH VERIFIED — CLOUDFRONT API ORIGIN PENDING
+```
+
+## Phase 8 CloudFront ALB-origin checkpoint — 2026-09-27
+
+```text
+Origin: Existing disabled distribution EY6998IJC3CMS now contains origin ID api-origin.tarunapps.com with domain api-origin.tarunapps.com and no origin path. The distribution remained Deployed and Enabled=false after the update.
+TLS: Custom origin policy is HTTPS-only on port 443 with TLSv1.2, three connection attempts, and ten-second connection timeout. The origin hostname matches the exact regional ACM certificate presented by the ALB.
+Authentication: The origin has exactly one custom header named X-Origin-Verify. Its rotated private value is intentionally omitted. This value matches the protected ALB listener rule and is injected only on CloudFront-to-origin requests.
+Status: HTTPS ALB ORIGIN AND PRIVATE HEADER VERIFIED — /api/* BEHAVIOR PENDING
+```
+
+## Phase 8 CloudFront API-behavior checkpoint — 2026-09-27
+
+```text
+Behavior: /api/* targets origin api-origin.tarunapps.com, redirects HTTP viewers to HTTPS, enables compression, and permits GET/HEAD/OPTIONS/PUT/POST/PATCH/DELETE. Only GET/HEAD are technically cacheable methods, but the selected cache policy sets every TTL to zero.
+Policies: Managed-CachingDisabled (minimum/default/maximum TTL 0/0/0) and Managed-AllViewerExceptHostHeader. The origin policy forwards all query strings and cookies and all viewer headers except Host, allowing CloudFront to use the origin hostname that matches the ALB certificate.
+Security: No signed-URL requirement, CloudFront Function, Lambda@Edge, response-headers policy, field-level encryption, or real-time logging was added. The distribution remained Enabled=false while global deployment moved to InProgress.
+Status: API ROUTING CONFIGURATION VERIFIED — GLOBAL DEPLOYMENT AND LIVE TEST PENDING
+```
+
+## Phase 8 same-origin API live verification — 2026-09-27
+
+```text
+CloudFront state: Distribution EY6998IJC3CMS reached Deployed with Enabled=true after the API-origin and behavior updates.
+Viewer/frontend proof: HTTP stockroom.tarunapps.com/ returned 301 to HTTPS. HTTPS / returned 200 text/html, 588 bytes, through the Hyderabad CloudFront edge and private S3 origin. Viewer certificate verification returned ssl_verify_result 0.
+API path proof: HTTPS /api/health returned 200 application/json. HTTPS /api/ready returned 200 application/json, proving the chain reached the private RDS dependency. HTTPS /api/products?limit=12 returned 200 application/json with 576 bytes, proving the frontend-compatible database-backed route. Each response included a distinct application x-request-id.
+Routing/TLS meaning: Successful API responses prove CloudFront selected /api/*, injected the private origin header, established HTTPS to api-origin.tarunapps.com with the matching ALB certificate, passed the protected listener rule, rewrote /api/... to /..., forwarded to the healthy ECS task, and reached RDS for readiness/data.
+Cache proof: Two consecutive identical /api/products?limit=12 requests both returned X-Cache: Miss from cloudfront and distinct request IDs. Managed-CachingDisabled therefore sent each request to the API rather than reusing an edge response.
+Origin protection: A direct local HTTPS connection to api-origin.tarunapps.com timed out at the network boundary because the ALB security group accepts only the AWS-managed CloudFront origin-facing prefix list. Unauthorized CloudFront-origin requests would additionally fail the private-header listener condition and receive default 403.
+Status: SAME-ORIGIN FRONTEND/API, TWO TLS SESSIONS, PATH REWRITE, PRIVATE HEADER, DATABASE READINESS, NO-CACHE, AND DIRECT-ORIGIN BLOCK VERIFIED — BROWSER CHECK AND CLEANUP PENDING
+```
+
+## Phase 8 browser image-upload/CORS diagnosis — 2026-09-27
+
+```text
+Observed failure: The production browser successfully created a product through the same-origin API, then its direct presigned S3 image PUT failed at the browser preflight. The console reported missing Access-Control-Allow-Origin for origin https://stockroom.tarunapps.com. The original 60-second presigned URL was exposed in chat; it was scoped to one object/request shape and expired. Future presigned URLs must be treated as short-lived bearer-style permissions and omitted from chat/logs.
+Root cause evidence: The private product-image bucket had no CORS configuration because its earlier temporary development rule had been removed during cleanup. The frontend code sends PUT with content-type, if-none-match, and x-amz-checksum-sha256, exactly matching the browser's requested headers. All four S3 Block Public Access settings remained true.
+Correction: The user added one exact-origin CORS rule allowing only PUT from https://stockroom.tarunapps.com with only those three request headers and a 300-second preflight cache. No wildcard origin/header, GET exposure, public ACL, public policy, or bucket-access change was introduced.
+Result: The browser retry succeeded. Sanitized authenticated inventory shows the bucket now contains two Standard objects totaling 352,041 bytes; the new object is 322,249 bytes and was written at 2026-09-27 13:22:54 IST. Anonymous object access remained 403 and Block Public Access remained fully enabled.
+Persistence/cost: The newly created database product row and 322,249-byte image are persistent user data and will not be deleted without confirmation. Incremental S3 storage is negligible at the documented Standard rate, but the retained data and CORS rule require an explicit review date. Remove the temporary CORS rule at runtime cleanup unless near-term browser upload work is explicitly retained.
+Incident lesson: API success and object-upload failure were independent partial outcomes. Browser console/preflight evidence plus S3 configuration distinguished a CORS policy failure from IAM, presigning, CloudFront, ALB, ECS, RDS, or public-access failure.
+Status: CONTROLLED BROWSER FAILURE DIAGNOSED AND CORRECTED; PRIVATE IMAGE UPLOAD VERIFIED
+```
+
+## Phase 8 same-origin API session close-out — 2026-09-27
+
+```text
+AWS runtime shutdown: CloudFront distribution EY6998IJC3CMS reached Deployed with Enabled=false. ECS service order-platform-phase5-lab-service-sh6nhkk3 became INACTIVE, the only task stopped, and its task ENI/public IPv4 disappeared. Fresh regional inventories showed zero ECS services/running tasks, zero load balancers, and zero target groups. Temporary ALB order-platform-phase8-api-alb, its HTTPS listener/rules, target group order-platform-phase8-api-tg, and temporary log group /aws/order-platform/phase6/api were deleted.
+Database: order-platform-phase5-postgres was stopped and remained private. Its refreshed mandatory automatic-restart time is 2026-10-04 13:32:43 IST. It must be reviewed and stopped again, or intentionally deleted, before that time if another session starts it or AWS automatically restarts it.
+Temporary browser policy: The exact-origin product-image bucket CORS configuration was removed after the successful upload test; GetBucketCors returned NoSuchCORSConfiguration. The persistent product row and two private image objects were intentionally retained. The image bucket contains two objects totaling 352,041 bytes; residual Standard storage cost is negligible but nonzero.
+Origin DNS cleanup: The user explicitly approved deletion of the now-dangling DNS-only traffic CNAME api-origin.tarunapps.com after the ALB was deleted. Cloudflare showed the record removed, and both authoritative nameservers returned no CNAME (zone SOA only). The separate ACM validation CNAME _7b591442b1a26ba9ac2508b55553ce5c.api-origin.tarunapps.com still returned _89586d966431d24203058113c132e0f2.wzccmgtwzk.acm-validations.aws and was intentionally retained.
+Retained API-origin foundation: Regional ACM certificate arn:aws:acm:ap-south-1:992382645171:certificate/53875af6-8342-48b1-aa80-e9f61a38f8e7 remains ISSUED, unattached, and without an expected incremental certificate charge. The disabled CloudFront distribution retains the HTTPS api-origin.tarunapps.com origin, private X-Origin-Verify header, and non-caching /api/* behavior so the next session can recreate an ALB and repoint the traffic CNAME without changing the stable origin name. The improved ALB security group remains restricted to the AWS-managed CloudFront origin-facing prefix list on 443 and TCP/3000 egress to the task security group.
+Retained frontend foundation: Disabled distribution EY6998IJC3CMS, OAC E3IV91DFGUN3YF, FREE CloudFront subscription, bundled WAF, private frontend S3 objects, viewer ACM certificate, stockroom.tarunapps.com DNS-only traffic CNAME, and both ACM validation CNAMEs remain. Expected residual direct hourly cost is USD 0 for the FREE plan, bundled WAF, ACM certificates, empty ECS cluster, task definitions, IAM roles, and security groups; S3/RDS storage, backups, Secrets Manager, ECR, and ordinary request usage remain low but nonzero.
+Review/delete date: Review every retained Phase 8/API-origin resource and persistent test product no later than 2026-10-03, before the RDS automatic-restart deadline on 2026-10-04. Delete the manually created foundation before Phase 9 Terraform recreation unless an explicit import exercise is chosen.
+Verification note: The AWS states above were verified immediately after the cleanup operations. A later repeat inventory after the Cloudflare deletion could not authenticate because the temporary AWS session token had expired; it produced no state changes and is not counted as fresh verification.
+Disposable hourly runtime cleanup: VERIFIED — CloudFront disabled; ECS service/task and task ENI/public IPv4 absent; ALB/listener/target group and ALB networking absent; RDS stopped/private; temporary log group and bucket CORS absent; dangling origin traffic CNAME removed.
+Overall account cleanup: PARTIAL — only the explicitly listed reusable foundation and persistent low-volume data remain, with review date 2026-10-03 and the RDS auto-restart deadline recorded above.
+```
+
+## Phase 8 observability-session approval gate — 2026-09-28
+
+```text
+Status: APPROVED by the user for a 1.5-hour session with a conservative USD 0.05 incremental cap.
+Identity and Region: AWS console shows account 992382645171 using AdministratorAccess/aws-learning-admin in ap-south-1 (Mumbai). Console billing widget shows approximately USD 3.41 current-month cost and USD 3.79 forecast against the existing USD 5 warning budget; estimates are delayed and are not spending caps.
+Approved scope: Inventory existing CloudWatch/SNS resources; create at most one temporary custom CloudWatch dashboard, three standard-resolution metric alarms, and one temporary SNS Standard topic with one user-controlled email subscription; test one alarm transition and notification; capture a sanitized incident timeline.
+Billing: CloudWatch dashboards and alarm metrics are usage-billed when outside applicable free-tier allowances; alarms are prorated hourly while they exist. SNS is request/delivery billed with no idle topic fee and has a usage-based free tier. No ECS/Fargate, ALB, RDS start, NAT Gateway, public IPv4, custom metrics, high-resolution alarms, anomaly detection, or paid CloudTrail trail is approved.
+Privacy/notification: The user will enter and confirm their own email address; it must not be copied into chat or the ledger. Only a controlled learning notification will be sent.
+Cleanup: Delete the temporary alarms, dashboard, SNS subscription/topic, and verify their exact absence before session close. If any item is intentionally retained, record its expected residual cost and a review/delete date; disable alarm actions if notification testing has ended.
+Approval: User accepted the scope, cost cap, notification test, and mandatory cleanup.
+```
+
+## Phase 8 SNS topic checkpoint — 2026-09-28
+
+```text
+Correction: The first topic was accidentally created as FIFO under order-platform-phase8-ops-alerts.fifo. FIFO ordering/deduplication is unnecessary for operational alerts and is not the intended CloudWatch alarm destination. The user deleted it; a fresh topic inventory verified it absent.
+Topic: order-platform-phase8-ops-alerts, ARN arn:aws:sns:ap-south-1:992382645171:order-platform-phase8-ops-alerts, type Standard, in ap-south-1. Inventory shows exactly this one topic.
+Verified settings: Four exact tags Project=aws-order-platform, Environment=learning, Owner=Tarun, AutoCleanup=false; server-side encryption disabled; no delivery-status logging preferences; zero subscriptions at this checkpoint.
+Billing/cleanup: Standard topics have no idle topic fee; requests and deliveries are usage billed with applicable free-tier allowance. Delete the topic and its temporary email subscription after the controlled alarm test, then verify both topic and subscription inventories empty.
+Status: CORRECT STANDARD TOPIC VERIFIED — EMAIL SUBSCRIPTION PENDING
+```
+
+## Phase 8 SNS email-subscription checkpoint — 2026-09-28
+
+```text
+Subscription: One EMAIL subscription exists on order-platform-phase8-ops-alerts and reached Confirmed after the user completed AWS's ownership-confirmation flow. The endpoint address is intentionally omitted from the ledger and chat response.
+Policies: No subscription filter policy or redrive/dead-letter policy was configured. Topic encryption and delivery-status logging remain disabled for the temporary sanitized lab.
+Operational meaning: A direct sanitized SNS publish will test topic-to-email delivery independently before CloudWatch alarm actions are attached. This separates notification-channel failure from alarm-evaluation failure.
+Cleanup: Delete the subscription with the topic after the controlled alarm test and verify both inventories empty.
+Status: EMAIL SUBSCRIPTION CONFIRMED — DIRECT SNS DELIVERY TEST PENDING
+```
+
+## Phase 8 direct SNS delivery verification — 2026-09-28
+
+```text
+Test: The user published one sanitized message directly to order-platform-phase8-ops-alerts and confirmed that it arrived at the subscribed email endpoint.
+Meaning: Topic publication, the confirmed subscription, and email delivery all work independently of CloudWatch. If a later alarm notification fails, diagnosis can begin with alarm evaluation/action configuration rather than the already-proven SNS delivery path.
+Data handling: The message explicitly identified itself as a controlled learning notification and contained no customer, credential, or production incident data. The endpoint remains omitted.
+Status: SNS TOPIC-TO-EMAIL DELIVERY VERIFIED — CLOUDWATCH DASHBOARD/ALARM PENDING
+```
+
+## Phase 8 CloudWatch dashboard edge-widget checkpoint — 2026-09-28
+
+```text
+Dashboard: order-platform-phase8-operations created as the account's only custom CloudWatch dashboard. CLI GetDashboard verified one persisted metric widget.
+Widget: CloudFront viewer error rate graphs AWS/CloudFront 4xxErrorRate and 5xxErrorRate for DistributionId EY6998IJC3CMS, Region dimension Global, with each metric explicitly sourced from us-east-1. Both use Average with a 300-second period; the left axis minimum is zero.
+Historical signal: A displayed five-minute point showed 4xxErrorRate 100 and 5xxErrorRate 0. This is not sufficient to infer a large outage because a percentage without request volume lacks a denominator; a low-volume single failed request can produce 100 percent. A Requests/Sum widget is required for context before diagnosis.
+Billing/cleanup: This temporary custom dashboard is usage-billed only if applicable free-tier allowances are exceeded. Delete it after the lesson and verify the dashboard inventory empty.
+Status: FIRST EDGE ERROR WIDGET VERIFIED — TRAFFIC/DATABASE/QUEUE CONTEXT AND ALARMS PENDING
+```
+
+## Phase 8 operational-dashboard checkpoint — 2026-09-28
+
+```text
+Dashboard: CLI PutDashboard/GetDashboard verified five persisted widgets and zero validation messages in order-platform-phase8-operations.
+Signals: CloudFront viewer error rate (4xx/5xx Average) and viewer requests (Sum), both five-minute us-east-1 metrics for EY6998IJC3CMS; RDS CPUUtilization Average for order-platform-phase5-postgres in ap-south-1; visible-message depth for both the main processing queue and DLQ; and Maximum age of the oldest main-queue message. All widgets use a five-minute period.
+Operational model: Requests represent traffic, 4xx/5xx represent errors, RDS CPU and queue depth represent saturation, and oldest-message age is a lagging customer-impact signal. Request volume supplies the denominator needed to interpret percentage spikes safely.
+Runtime: CloudFront remains disabled and RDS remains stopped; dashboard creation started no compute. SQS queues are retained low-usage state from Phase 6.
+Status: FIVE-WIDGET DASHBOARD VERIFIED — ACTIONABLE ALARMS PENDING
+```
+
+## Phase 8 actionable-alarm creation checkpoint — 2026-09-28
+
+```text
+Alarms: Three standard-resolution metric alarms were created in ap-south-1, each with ActionsEnabled=true, AlarmActions and OKActions pointing only to order-platform-phase8-ops-alerts, and TreatMissingData=notBreaching.
+DLQ alarm: order-platform-phase8-dlq-has-messages uses AWS/SQS ApproximateNumberOfMessagesVisible Maximum for order-platform-phase6-order-processing-dlq, threshold >=1, one of one five-minute datapoint. Any DLQ message is actionable.
+Delay alarm: order-platform-phase8-orders-delayed uses AWS/SQS ApproximateAgeOfOldestMessage Maximum for the main queue, threshold >300 seconds, two of three five-minute datapoints. This filters a single transient point while detecting sustained customer delay.
+Database alarm: order-platform-phase8-rds-high-cpu uses AWS/RDS CPUUtilization Average for order-platform-phase5-postgres, threshold >80 percent for three of three five-minute datapoints. Its description directs correlation with connections, slow queries, API latency, and queue age rather than treating CPU alone as root cause.
+Tags: All alarms were created with the exact Project, Environment, Owner, and AutoCleanup=false tag set. Initial state was INSUFFICIENT_DATA as expected for newly created alarms on stopped/idle resources; missing data is configured as not breaching.
+Billing/cleanup: Three standard alarm metrics are hourly prorated and within the approved maximum of three. Delete all three after the controlled state/action test and verify no Phase 8 alarms remain.
+Status: THREE ACTIONABLE ALARMS VERIFIED — CONTROLLED STATE/ACTION TEST PENDING
+```
+
+## Phase 8 CORS-incident CloudTrail timeline — 2026-09-28
+
+```text
+Incident: On 2026-09-27 the same-origin production UI successfully created a product database row, but the browser's direct presigned S3 PUT failed its preflight because the private image bucket had no matching CORS rule. The symptom was a partial outcome: product created, image pending.
+Evidence before correction: Browser console reported missing Access-Control-Allow-Origin. Authenticated bucket inspection found no CORS configuration while all S3 Block Public Access settings remained enabled. The API and database path had succeeded, isolating the failure to the browser-to-S3 upload leg rather than CloudFront, ALB, ECS, RDS, presigning identity, or public access.
+13:21:52 IST: CloudTrail Event History records PutBucketCors by aws-learning-admin on order-platform-phase5-product-images-2bf589a4, event ID 5dd12ce1-03df-4433-a79b-d4dbf76d7fdf. The narrow rule allowed only the exact production origin, PUT, and the three required request headers.
+13:22:54 IST: S3 object inventory records the successful 322,249-byte image write. Browser retry also succeeded. CloudTrail Event History contains no PutObject because object-level S3 operations are data events and no paid data-event trail was enabled; persisted S3 object state supplies this proof.
+13:26:27 IST: CloudTrail Event History records DeleteBucketCors by aws-learning-admin on the same bucket, event ID 3faf9329-8747-4a3a-aa58-9df9a3cadd9c, during mandatory runtime cleanup. The uploaded object and database row were intentionally retained as user data.
+Root cause: Missing S3 CORS permission for the production browser origin. CORS is enforced by the browser and is separate from IAM authorization, presigned-request validity, bucket privacy, and network routing.
+Signals used: Browser console/preflight response, application partial-success message, S3 configuration and object inventory, CloudTrail management-event history, and previously verified API/database health.
+Resilience gap/improvement: Product creation and image upload are a multi-step client workflow that can partially succeed. Production should manage the exact CORS rule as reviewed infrastructure, expose image-upload state clearly, support retry/reconciliation, and emit a metric/log for products remaining image-pending rather than relying only on browser reports.
+Audit/cost trade-off: Free Event History was sufficient for management configuration changes. Enabling S3 object data events would improve per-object audit detail but adds CloudTrail event charges and should be scoped to the exact bucket/prefix if adopted.
+Status: CONTROLLED FAILURE TIMELINE AND ROOT-CAUSE TRACE VERIFIED
+```
+
+## Phase 8 resilience review — 2026-09-28
+
+```text
+Evidence reused: Phase 6 already demonstrated the real API/database-outbox/SQS/worker path, duplicate handling, poison-message retry to the source queue's three-receive DLQ, diagnosis, and safe redrive. Phase 7 demonstrated a controlled IAM-denied target delivery captured in a DLQ. Phase 8 demonstrated a browser/S3 CORS partial failure and its audit timeline. No paid runtime was recreated for this review.
+API unavailable: CloudFront can continue serving the static frontend while enabled, but new API operations fail. Already durable outbox/queue work can continue if the worker and database remain available.
+Worker unavailable: Accepted order/job/outbox state remains in PostgreSQL; already published commands remain in SQS. Queue depth/oldest-message age or pending-outbox age grows, providing backpressure signals. Recovery resumes publication/processing without requiring clients to recreate accepted orders.
+SQS unavailable: The database transaction preserves the order/job plus pending outbox record. Publication fails/retries rather than creating a database/message split; processing is delayed rather than silently lost.
+Database unavailable: API /health may show a live process while /ready fails, so the load-balancer/readiness boundary must stop database-dependent traffic. Workers cannot commit effects and must not delete SQS messages; visibility expiry causes retry and persistent poison/failure eventually reaches the DLQ.
+Poison message/IAM denial: Redrive isolates a repeatedly failing command after three receives so unrelated Standard-queue messages can proceed. Missing worker SQS permissions produces growing depth/age; missing publisher SendMessage permission leaves outbox work retryable. Prior Phase 7 evidence showed an AccessDenied delivery captured without invoking its target.
+AZ/resilience boundary: SQS is Regional and the temporary ALB spanned two AZs, but one ECS task and the retained Single-AZ RDS instance do not provide application/database high availability. A database-AZ failure is the largest current availability gap. High availability would require redundant tasks and Multi-AZ database failover; disaster recovery instead concerns backup/restore and presently has no cross-Region design.
+Graceful degradation: Static browsing can survive API/database downtime when CloudFront is enabled; order mutation and database-backed reads cannot. Queueing absorbs temporary worker slowness, but queue age becomes customer-visible delay and must be alarmed.
+Status: DEPENDENCY FAILURE, GRACEFUL DEGRADATION, HA/DR, RETRY, AND DLQ TRADE-OFFS REVIEWED
+```
+
+## Phase 8 operational cost model — 2026-09-28
+
+```text
+Scope and assumptions: This is a learning estimate using the Mumbai rates already recorded in this ledger, not an invoice quote. The representative active system consists of three 0.25-vCPU/0.5-GB Fargate processes (API, outbox publisher, and worker), one low-traffic two-AZ internet-facing ALB, one public IPv4 per task, and db.t4g.micro RDS compute. CloudFront remains on the existing USD 0 FREE plan. CloudWatch Logs ingestion, request charges, data transfer, excess backup storage, and tax are excluded because workload volume is not specified.
+Fresh retained inventory: Account 992382645171 in ap-south-1 has one stopped 20-GiB Single-AZ RDS instance, one managed RDS secret, one ECR repository containing three images totaling approximately 0.360 GB, and two private S3 buckets totaling 568,778 bytes. CloudFront EY6998IJC3CMS is Deployed and disabled. The earlier image tags remain in one repository named order-platform-phase4-api; the previously assumed phase-specific repository names do not exist.
+Idle retained baseline: RDS gp3 storage approximately USD 2.62/month + one managed secret USD 0.40/month + ECR approximately USD 0.036/month + S3 approximately USD 0.000014/month = approximately USD 3.056/month, before backup/request/tax variance. Stopping RDS removes compute cost, not storage, backups, or secret cost.
+Representative active hour: Each Fargate process is approximately USD 0.0129675/hour for CPU/memory plus public IPv4. Three processes are approximately USD 0.0539025/hour. A low-traffic started ALB hour is approximately USD 0.0419, including one LCU assumption and two ALB public IPv4s. RDS compute is approximately USD 0.021/hour. Total representative runtime is approximately USD 0.1168025/hour before excluded variable charges.
+Cost per order: At 1,000 orders processed in that hour, representative runtime is approximately USD 0.0001168/order. At 10 orders in that hour, it is approximately USD 0.01168/order. This demonstrates that utilization, not merely resource price, determines unit economics because fixed hourly runtime is spread across the completed orders.
+Scaling boundary: Adding Fargate tasks increases task CPU/memory and public-IPv4 cost roughly per task; ALB LCU, logs, database load/storage, cross-AZ traffic, and transfer can then rise nonlinearly with traffic patterns. NAT Gateway would add meaningful hourly and per-GB cost, so the lab deliberately used task public IPv4s and strict security groups instead.
+Status: IDLE, REPRESENTATIVE LOAD, SCALING, AND PER-ORDER COSTS CALCULATED
+```
+
+## Phase 8 final review and cleanup verification — 2026-09-28
+
+```text
+Phase result: COMPLETE for the Phase 8 learning and exit criteria. The frontend and API were previously verified over HTTPS through the same CloudFront hostname; actionable CloudWatch alarms and SNS delivery were demonstrated; the CORS failure was traced from browser symptom to configuration root cause; and concrete security, resilience, and cost improvements were recorded.
+Architecture decision: Use one CloudFront hostname with a private OAC-backed S3 default origin and a non-caching /api/* behavior to a TLS ALB origin. This avoids browser CORS and separate public API-hostname complexity for normal API calls, keeps static assets cacheable, and centralizes viewer TLS. The accepted trade-offs are CloudFront configuration complexity, two TLS hops, a protected origin header that requires rotation, and the need to manage direct presigned-S3 upload CORS separately. Alternatives considered were exposing the React build directly from EC2/ECS/ALB, using a separate public API hostname, or serving the S3 website endpoint; those alternatives lose private-origin/CDN benefits or add cross-origin/public-origin concerns.
+Security review: Verified controls included private S3/OAC delivery, viewer and origin TLS, disabled API caching, CloudFront-prefix-list restriction on the temporary ALB, a private origin-verification header, private RDS, and IAM workload roles. Remaining improvements are managed rotation for the static origin header, exact CORS and operational alarms managed as code, selective S3 data-event auditing if justified, redundant ECS tasks, and a deliberate Multi-AZ RDS cost/availability decision.
+Temporary observability cleanup: The three Phase 8 alarms, custom dashboard, SNS email subscription, and SNS topic are absent. Cleanup was initiated under the emergency-stop protocol while the user was frustrated, before the intended alarm-wiring explanation had been completed; that sequencing caused avoidable confusion. No persistent application data was deleted. Previously delivered test emails cannot be recalled.
+Fresh AWS runtime verification: Account 992382645171 in ap-south-1 has zero pending/available NAT Gateways, zero Elastic IP allocations, zero pending/running EC2 instances, zero ECS services and running tasks in order-platform-phase4-cluster, zero load balancers, and no temporary /aws/order-platform/phase6/api log group. The product-image bucket has no CORS configuration. CloudFront EY6998IJC3CMS is Deployed with Enabled=false.
+Database: order-platform-phase5-postgres is stopped, private, Single-AZ, and retains 20 GiB storage. AWS reports mandatory automatic restart at 2026-10-04 08:02:43 UTC / 2026-10-04 13:32:43 IST. Review and stop it again or intentionally delete it before that deadline.
+Intentionally retained state: One RDS instance/storage and managed secret; one ECR repository with three images totaling about 0.360 GB; two private S3 buckets totaling 568,778 bytes; the disabled CloudFront distribution/OAC/WAF-free-plan configuration; ACM certificates and validation records; the documented DNS records; and reusable VPC, IAM, security-group, task-definition, queue, and empty-cluster foundation. Approximate known idle baseline is USD 3.056/month before backups, requests, and tax. Review/delete date remains 2026-10-03.
+Boundary decision: Manual-foundation import versus deletion is intentionally not performed in this Phase 8 close-out. It is the first Phase 8/9 boundary decision before Terraform recreation; no Terraform apply should duplicate the retained manual foundation.
+Disposable hourly runtime cleanup: VERIFIED.
+Temporary Phase 8 observability cleanup: VERIFIED.
+Overall account cleanup: PARTIAL — only the explicitly documented retained foundation and persistent low-volume data remain, with cost, reason, review date, and RDS automatic-restart deadline recorded.
+```
+
+## Phase 9 Session 1 local Terraform close-out — 2026-10-01
+
+```text
+Session scope: Installed and checksum-verified Terraform 1.16.4 locally; completed a local-only Terraform lifecycle exercise using one local_file resource, including init, fmt, validate, plan, apply, state inspection, replacement, controlled drift detection/repair, reviewed destroy, and direct cleanup verification.
+AWS changes: None. No Terraform AWS provider was configured and no AWS or Cloudflare resource was created, started, modified, imported, or deleted.
+Local cleanup: The managed hello.txt file is absent and terraform state list is empty after destroy. The learning configuration and provider lock file remain as local learning artifacts; generated Terraform working/state files are Git-ignored.
+Fresh AWS identity and Region: Expected aws-learning Identity Center caller in account 992382645171 verified with explicit ap-south-1 queries.
+Fresh AWS runtime verification: order-platform-phase5-postgres is stopped, private, and reports mandatory automatic restart at 2026-10-04 08:02:43 UTC / 2026-10-04 13:32:43 IST. The retained ECS cluster has zero active services and zero running/pending tasks. Fresh inventories contain zero load balancers, zero pending/available NAT Gateways, and zero Elastic IP allocations.
+Resources intentionally retained: The previously documented Phase 4-8 foundation and persistent data remain unchanged. Review them by 2026-10-03, before the RDS automatic-restart deadline.
+Expected incremental AWS cost: USD 0 from this local-only Terraform session. The previously documented approximate USD 3.056/month retained idle baseline continues before backups, requests, transfer, and tax.
+Disposable Session 1 cleanup: VERIFIED.
+Overall account cleanup: PARTIAL — previously documented retained foundation and persistent data remain intentionally present; no Phase 9 AWS resource exists yet.
+```
+
+## Phase 9 Session 1 completion — 2026-10-02
+
+```text
+Learning evidence: The learner resumed the local-only Terraform lab and implemented an input variable and output, supplied a value through TF_VAR_greeting, generated and reviewed a saved plan, applied that exact plan, inspected the managed resource and plaintext state attributes, explained how current inputs determine desired state, and observed how a removed environment override changes the next plan.
+AWS changes: None. No Terraform AWS provider was configured and no AWS or Cloudflare resource was created, started, modified, imported, or deleted.
+Local cleanup verification: terraform destroy completed; hello.txt is absent; terraform state list is empty; the obsolete lesson.tfplan is absent. Generated .terraform and local state files remain Git-ignored. main.tf and .terraform.lock.hcl remain as learning artifacts.
+Fresh AWS verification: order-platform-phase5-postgres is stopped and private with mandatory automatic restart at 2026-10-04 08:02:43 UTC / 2026-10-04 13:32:43 IST. The retained ECS cluster has zero active services and zero running/pending tasks. Fresh inventories contain zero load balancers, zero pending/available NAT Gateways, and zero Elastic IP allocations.
+Budget signal at session start: USD 3.738 actual and USD 3.786 forecast against the USD 5 warning budget, last updated 2026-10-01. Billing is delayed and the budget is not a cap or cleanup proof.
+Expected incremental AWS cost: USD 0 for this local-only session. The previously documented retained idle baseline continues.
+Session 1 cleanup: VERIFIED.
+Overall account cleanup: PARTIAL — previously documented retained foundation and persistent data remain. Review them by 2026-10-03, before the RDS automatic-restart deadline.
+```
+
+## Phase 9 Session 2 AWS-provider close-out — 2026-10-02
+
+```text
+Session scope: Configured the Terraform AWS provider for ap-south-1, corrected the credential path from stale default shared credentials to the aws-learning IAM Identity Center profile, and verified account 992382645171. Read-only data sources inspected the caller identity, selected Region, and available Availability Zones. The learner reviewed provider locking, Git-ignore boundaries, outputs in state, and the distinction between data sources and managed resources.
+AWS changes: None. Terraform made only read-only AWS API calls; no managed AWS resource was created, modified, imported, or deleted.
+Local cleanup verification: terraform destroy removed the outputs and data-source records from local state; terraform state list was empty afterward. main.tf and .terraform.lock.hcl remain as learning artifacts; generated provider and state files remain Git-ignored.
+Expected incremental AWS cost: USD 0 for the read-only provider lesson.
+Session 2 cleanup: VERIFIED.
+Overall account cleanup: PARTIAL — the previously documented retained foundation and persistent data remained outside this lab.
+```
+
+## Phase 9 Session 3 preflight and automatic-RDS-restart response — 2026-10-04
+
+```text
+Identity and Region: The aws-learning Identity Center caller was freshly verified as aws-learning-admin in account 992382645171. All workload checks used ap-south-1 (Mumbai).
+Automatic restart detected: order-platform-phase5-postgres had automatically returned to available. It remained private, db.t4g.micro, and 20 GiB gp3. While available it incurred RDS compute charges in addition to retained storage/backup/secret costs.
+Cost-safety action: With the learner's explicit approval, a stop was requested for only order-platform-phase5-postgres. Repeated direct AWS checks confirmed the terminal stopped state; no database, snapshot, secret, or persistent data was deleted. AWS now reports the next mandatory automatic restart at 2026-10-11 13:13:40 UTC / 2026-10-11 18:43:40 IST. Review, deliberately start-stop, or delete it by 2026-10-10.
+Fresh runtime baseline: The retained ECS cluster is ACTIVE with zero services and zero running/pending tasks. There are zero load balancers, zero pending/available/deleting NAT Gateways, and zero Elastic IP allocations.
+Budget signal: October actual USD 0.333 and forecast USD 3.311 against the USD 5 warning budget. Billing data is delayed; this is not a spending cap or cleanup proof.
+Proposed Session 3 disposable resource: One Standard SQS queue, with no hourly idle charge. SQS is request/data-transfer billed; the planned lab uses only a handful of control-plane requests, sends no messages, and is expected to remain within the account's monthly free request allowance. The queue must be destroyed through Terraform and independently verified absent before session close.
+Pre-lab cleanup status: VERIFIED for hourly runtime. Overall account cleanup remains PARTIAL because the documented retained foundation and persistent data remain.
 ```

@@ -11,3 +11,10 @@ coverage/
 
 
 .artifacts/
+
+
+# Terraform generated and potentially sensitive files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan

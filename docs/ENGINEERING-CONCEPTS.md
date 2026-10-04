@@ -419,31 +419,31 @@ Cleanup status:
 
 ### I should be able to answer
 
-- [ ] Is `ProcessOrder` a command or an event? What about `OrderConfirmed`?
-- [ ] Why use SQS for worker load rather than SNS alone?
-- [ ] When is EventBridge routing preferable to direct queue publishing?
-- [ ] When is SNS more appropriate than EventBridge?
-- [ ] Why is SES a better fit than SNS for customer-facing email?
-- [ ] How is an EventBridge event bus different from Scheduler?
-- [ ] How do we prevent duplicate reports for the same reporting period?
-- [ ] What happens when one event consumer succeeds and another fails?
+- [x] Is `ProcessOrder` a command or an event? What about `OrderConfirmed`?
+- [x] Why use SQS for worker load rather than SNS alone?
+- [x] When is EventBridge routing preferable to direct queue publishing?
+- [x] When is SNS more appropriate than EventBridge?
+- [x] Why is SES a better fit than SNS for customer-facing email?
+- [x] How is an EventBridge event bus different from Scheduler?
+- [x] How do we prevent duplicate reports for the same reporting period?
+- [x] What happens when one event consumer succeeds and another fails?
 
 ### I should be able to demonstrate
 
-- [ ] Route an order event only to its intended consumers.
-- [ ] Evolve an event without breaking an existing consumer.
-- [ ] Run the same reporting period twice without creating conflicting results.
-- [ ] Cause a notification target to fail and observe independent consumers.
-- [ ] Disable all schedules before session cleanup.
+- [x] Route an order event only to its intended consumers.
+- [x] Evolve an event without breaking an existing consumer.
+- [x] Run the same reporting period twice without creating conflicting results.
+- [x] Cause a notification target to fail and observe independent consumers.
+- [x] Disable all schedules before session cleanup.
 
 ### Phase review
 
 ```text
-Confidence (0-4):
-Messaging choice I can defend:
-Schedule idempotency result:
-Partial-failure result:
-Cleanup status:
+Confidence (0-4): 3 — can explain and defend the main boundaries; revisit Scheduler retry timing/event-age interaction during Phase 8 operations work.
+Messaging choice I can defend: Commands go to their single owner; `OrderConfirmed` facts enter EventBridge for content-based routing. SQS remains the durable work queue, SNS performs operational fan-out, and SES sends transactional customer email.
+Schedule idempotency result: The same reporting date ran on demand, again on demand, and from Scheduler without overwriting the existing S3 report. A deterministic date key plus conditional write preserved the original object.
+Partial-failure result: Removing Scheduler-role `lambda:InvokeFunction` caused target delivery to fail before Lambda ran. The Scheduler DLQ captured an `AccessDeniedException`; a successful target would remain successful because EventBridge target deliveries are independent.
+Cleanup status: Phase 7 disposable resources are deleted and AWS-verified. The retained private RDS instance is stopped; storage/backup/secret costs and the automatic-restart review date remain documented in the cost ledger.
 ```
 
 ## Phase 8 — Edge delivery, observability, and resilience
@@ -465,34 +465,50 @@ Cleanup status:
 
 ### I should be able to answer
 
-- [ ] What does CloudFront cache, and how can stale content be corrected?
-- [ ] What roles do Route 53, ACM, CloudFront, and the ALB each play?
-- [ ] When should I use a log, metric, trace, or CloudTrail event?
-- [ ] What are the important latency, traffic, error, and saturation signals?
-- [ ] Which alarm indicates a customer problem before customers report it?
-- [ ] How can one order be followed across the API, queue, worker, and database?
-- [ ] What can the system still do when a dependency is unavailable?
-- [ ] How is high availability different from disaster recovery?
-- [ ] What does the complete system cost while idle and under representative
+- [x] What does CloudFront cache, and how can stale content be corrected?
+- [x] What roles do Route 53, ACM, CloudFront, and the ALB each play?
+- [x] When should I use a log, metric, trace, or CloudTrail event?
+- [x] What are the important latency, traffic, error, and saturation signals?
+- [x] Which alarm indicates a customer problem before customers report it?
+- [x] How can one order be followed across the API, queue, worker, and database?
+- [x] What can the system still do when a dependency is unavailable?
+- [x] How is high availability different from disaster recovery?
+- [x] What does the complete system cost while idle and under representative
       load?
 
 ### I should be able to demonstrate
 
-- [ ] Diagnose delayed orders using signals from multiple components.
-- [ ] Build a timeline for one controlled failure.
-- [ ] Tune a noisy alarm into an actionable alarm.
-- [ ] Simulate an AZ or dependency failure safely and explain the result.
-- [ ] Calculate idle cost and a representative cost per order.
+- [x] Diagnose delayed orders using signals from multiple components.
+- [x] Build a timeline for one controlled failure.
+- [x] Tune a noisy alarm into an actionable alarm.
+- [x] Simulate an AZ or dependency failure safely and explain the result.
+- [x] Calculate idle cost and a representative cost per order.
 
 ### Phase review
 
 ```text
-Confidence (0-4):
-Incident diagnosed:
-Signals used:
-Resilience gap found:
-Cost estimate:
-Cleanup status:
+Confidence (0-4): 3 — can explain and defend the edge, TLS, origin-protection,
+observability, failure, resilience, and cost boundaries; production-grade
+multi-AZ operation and persistent alarms remain future improvements.
+Incident diagnosed: Product creation succeeded but its direct presigned S3
+image upload failed because the production browser origin lacked an S3 CORS
+rule. The exact rule fixed the retry and was removed during cleanup.
+Signals used: Browser preflight error, API partial-success behavior, S3
+configuration/object state, CloudTrail management events, CloudFront request
+and error metrics, queue depth/age, RDS CPU, application logs, and request IDs.
+Resilience gap found: One ECS task and Single-AZ RDS are not highly available;
+the client-side product/image workflow can also partially succeed and needs
+retry/reconciliation plus an image-pending operational signal.
+Cost estimate: Approximately USD 3.056/month retained idle baseline and USD
+0.1168/active hour for the representative three-task asynchronous system,
+before logs, requests, transfer, excess backups, and tax. At 1,000 orders/hour
+that runtime is approximately USD 0.0001168/order; at 10/hour it is USD
+0.01168/order.
+Cleanup status: Disposable hourly runtime and temporary observability resources
+are AWS-verified absent. Overall cleanup is PARTIAL because the documented
+stopped RDS storage, secret, ECR images, private S3 data, disabled CloudFront
+distribution, ACM certificates, DNS validation/routing records, and reusable
+network/IAM/ECS foundation remain for the Phase 8/9 boundary decision.
 ```
 
 ## Phase 9 — Terraform, state, and drift
@@ -611,7 +627,7 @@ the AWS Console open:
 | 4 — ECS/deployments        |                2 | 2026-08-06     | Digest-pinned Fargate/ALB deployment, 1-versus-2 task replacement, draining, unhealthy rollout/circuit-breaker rollback, verified runtime cleanup | Yes — task-definition recall, rolling percentages, rollback vs roll-forward, horizontal vs vertical scaling |
 | 5 — Data/storage/secrets   |                3 | 2026-08-18     | Private RDS/TLS/secret rotation, pool scaling, row-lock concurrency, query plan, expand/contract, PITR, private presigned S3, real API/UI flow, verified cleanup | Yes — production HA/egress, pool pressure under real replicas, and recovery repetition |
 | 6 — Async reliability      |                3 | 2026-09-04     | Real API/outbox/SQS/ECS-worker flow; duplicate/DLQ/redrive labs; Lambda partial-batch/DLQ/redrive lab; workbook review; verified runtime cleanup | Yes — repeat the controlled ECS crash-after-commit-before-ack drill |
-| 7 — Events/notifications   |                  |                |                                                                                                              |                                   |
-| 8 — Operations/resilience  |                  |                |                                                                                                              |                                   |
+| 7 — Events/notifications   |                3 | 2026-09-21     | EventBridge routing, SNS/SES delivery, idempotent S3 report, Scheduler success and DLQ failure, Phase 7 ADR, verified disposable cleanup | Yes — retry timing/event age, schema evolution under multiple real consumers |
+| 8 — Operations/resilience  |                3 | 2026-09-28     | Private S3/CloudFront edge, custom TLS/DNS, protected same-origin API, dashboards/alarms/SNS, CloudTrail failure timeline, resilience and cost review, verified runtime cleanup | Yes — recreate alarms/CORS as code, HA trade-offs, selective tracing/data events |
 | 9 — Terraform/drift        |                  |                |                                                                                                              |                                   |
 | 10 — CI/CD/readiness       |                  |                |                                                                                                              |                                   |
