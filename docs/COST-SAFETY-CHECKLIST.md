@@ -1566,3 +1566,50 @@ Budget signal: October actual USD 0.333 and forecast USD 3.311 against the USD 5
 Proposed Session 3 disposable resource: One Standard SQS queue, with no hourly idle charge. SQS is request/data-transfer billed; the planned lab uses only a handful of control-plane requests, sends no messages, and is expected to remain within the account's monthly free request allowance. The queue must be destroyed through Terraform and independently verified absent before session close.
 Pre-lab cleanup status: VERIFIED for hourly runtime. Overall account cleanup remains PARTIAL because the documented retained foundation and persistent data remain.
 ```
+
+## Phase 9 Session 3 SQS lifecycle and cleanup — 2026-10-04
+
+```text
+Learning resource: Terraform created exactly one Standard SQS queue, order-platform-phase9-tf-lab-20261004, in account 992382645171 and ap-south-1. Required tags were Project=aws-order-platform, Environment=learning, Owner=Tarun, and AutoCleanup=false. No messages, subscriptions, DLQ, customer-managed KMS key, or cross-Region transfer were used.
+Billing contract: SQS has no hourly idle charge and is request/data-transfer billed. The exercise made only a small number of control-plane calls and sent no messages; expected incremental SQS cost is effectively USD 0 and within the monthly free request allowance, though the allowance was not treated as a spending cap.
+Lifecycle evidence: A reviewed saved plan created one resource. Terraform state and a direct AWS attribute query agreed on the queue ARN, zero messages, 3,600-second retention, and 10-second long polling. A configuration change to 7,200-second retention produced an in-place update with the same ARN.
+Controlled drift: The queue retention was manually changed through the AWS CLI from 7,200 to 900 seconds while configuration remained 7,200. Terraform refreshed AWS, detected 900 -> 7,200 as one in-place change, and a reviewed saved plan restored the configured value. A direct AWS query confirmed 7,200 afterward.
+Destroy and verification: A reviewed destroy plan contained only aws_sqs_queue.learning. Apply reported one destroyed. terraform state list is empty; no *.tfplan files remain in the lab; an independent AWS GetQueueUrl call returns AWS.SimpleQueueService.NonExistentQueue for the exact queue name.
+Retained runtime verification: order-platform-phase5-postgres remains stopped and private. Its next mandatory automatic restart is 2026-10-11 13:13:40 UTC / 2026-10-11 18:43:40 IST. Review or deliberately start-stop/delete it by 2026-10-10.
+Session 3 disposable-resource cleanup: VERIFIED.
+Overall account cleanup: PARTIAL — the previously documented retained foundation and persistent data remain intentionally retained with residual storage/secret costs.
+```
+
+## Phase 9 Session 4 remote-state bootstrap proposal — 2026-10-04
+
+```text
+Approved purpose: Create one dedicated Terraform-managed S3 bucket named aws-order-platform-tfstate-992382645171-ap-south-1 in account 992382645171 and ap-south-1. It will store separate encrypted state objects and native S3 lock files for the foundation, data, and runtime root modules. Existing application buckets will not store Terraform state.
+Billing: S3 Standard storage plus PUT/GET/LIST requests. State files and lock files are expected to remain tiny and low request volume; expected residual cost is well below USD 0.01/month at the learning scale, but billing is usage-based and the estimate is not a cap.
+Security/recovery controls in reviewed plan: default SSE-S3 encryption, all four Block Public Access settings, TLS-only bucket policy, versioning, 90-day noncurrent-version expiration, seven-day incomplete-multipart cleanup, force_destroy=false, and Terraform prevent_destroy lifecycle protection. Required project tags plus ManagedBy=Terraform and Stack=bootstrap are present.
+Plan evidence: Saved bootstrap.tfplan contains exactly six creates, zero changes, and zero destroys: the bucket, versioning, encryption configuration, public-access block, lifecycle configuration, and TLS-only bucket policy. The IAM policy document is read-only plan data, not an AWS resource.
+Retention and cleanup: Retain through Phase 9 because active Terraform roots will depend on it. Review/delete by 2026-10-31 or Phase 9 completion, whichever comes first. Before deletion, migrate or retire every active state, preserve any required recovery version, deliberately remove prevent_destroy, delete all object versions/lock files, delete the bucket, and independently verify absence in AWS.
+Status: APPROVED DESIGN AND REVIEWED PLAN — APPLY/POST-APPLY VERIFICATION PENDING.
+```
+
+## Phase 9 Session 4 remote-state bootstrap completion — 2026-10-04
+
+```text
+Applied result: The reviewed bootstrap plan created the dedicated state bucket and its five protection/configuration resources with zero unrelated changes or destroys. Bootstrap local state contains the expected three data addresses and six managed addresses. The obsolete bootstrap plan file is absent.
+AWS verification: aws-order-platform-tfstate-992382645171-ap-south-1 has versioning Enabled, all four Block Public Access controls true, policy status IsPublic=false, explicit SSE-S3 encryption, the reviewed lifecycle controls, and the TLS-only deny policy. The foundation state object exists at foundation/terraform.tfstate, is 1,551 bytes, is AES256 encrypted, and has S3 version ID rDmRXMNF7CenUOtuKetddJqCqdWE27RK.
+State migration: The foundation root first created a harmless local state containing only caller/Region data, then terraform init -migrate-state copied it into the S3 backend with native use_lockfile=true locking and the expected-account guard. Obsolete local terraform.tfstate and terraform.tfstate.backup files are absent; terraform state list still returns the two data addresses through the remote backend.
+Retained-cost status: The state bucket and its tiny versioned objects are intentionally retained through Phase 9. Expected S3 storage/request cost remains well below USD 0.01/month at current learning scale. Review/delete by 2026-10-31 or Phase 9 completion, whichever comes first; use the documented state-migration/version-cleanup procedure before bucket deletion.
+Hourly-runtime verification: RDS order-platform-phase5-postgres is stopped and private with mandatory automatic restart at 2026-10-11 13:13:40 UTC / 18:43:40 IST. ECS has zero services and zero running/pending tasks; there are zero load balancers, pending/available/deleting NAT Gateways, and Elastic IP allocations.
+Session 4 disposable cleanup: VERIFIED — no disposable AWS runtime was created. The state bucket is intentionally retained infrastructure, not failed cleanup.
+Overall account cleanup: PARTIAL — the Terraform state bucket plus the previously documented manual foundation and persistent data remain intentionally retained.
+```
+
+## Phase 9 Session 5 ECR-import preflight — 2026-10-06
+
+```text
+Identity and Region: Freshly verified aws-learning-admin in account 992382645171; all workload work remains in ap-south-1.
+Budget gate: October actual USD 0.723 and forecast USD 6.051 against the USD 5 warning budget, last updated 2026-10-06 19:54 IST. Billing is delayed and the budget is not a cap. Because forecast exceeds the warning amount, this session must create no new paid service runtime or storage beyond tiny already-approved Terraform state requests/versions.
+Runtime baseline: order-platform-phase5-postgres is stopped and private with mandatory automatic restart at 2026-10-11 13:13:40 UTC / 18:43:40 IST. ECS has zero services and zero running/pending tasks. There are zero load balancers, pending/available/deleting NAT Gateways, and Elastic IP allocations.
+Import target: Existing ECR repository order-platform-phase4-api, AES256 encrypted, immutable tags, scan-on-push disabled, containing three retained tagged images totaling 360,122,996 bytes. Import must preserve all images, use force_delete=false and lifecycle prevent_destroy, and propose zero replacement or deletion. Expected incremental ECR cost from import is USD 0 because import changes ownership/state rather than stored image bytes.
+Cleanup/verification: Confirm the post-import repository ARN and image digests/count directly in AWS, remove obsolete saved plan files, and retain the repository under its previously documented ECR storage cost. If the plan proposes replacement, repository deletion, or image deletion, do not apply.
+Status: READ-ONLY PREFLIGHT VERIFIED — IMPORT CONFIGURATION/PLAN PENDING.
+```
