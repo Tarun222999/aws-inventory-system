@@ -82,3 +82,9 @@ output "db_parameter_group_name" {
   description = "PostgreSQL parameter group for the practice database"
   value       = aws_db_parameter_group.postgres.name
 }
+
+
+output "task_role_name" {
+  description = "Application task role name for runtime policy attachments"
+  value       = aws_iam_role.task.name
+}

@@ -15,3 +15,10 @@ variable "owner" {
   type        = string
   default     = "Tarun222999"
 }
+
+
+variable "app_image_digest" {
+  description = "Exact ECR image digest used by application containers"
+  type        = string
+}
+
