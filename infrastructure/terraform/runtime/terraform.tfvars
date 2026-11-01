@@ -1,1 +1,1 @@
-app_image_digest = "sha256:d28527248fa29eb7e62d18a6a51442e91602b9a812e0050f0576638e9bf89a82"
+app_image_digest = "sha256:b3985a8ce7f50bac63a6c6cb5940093c4ff2efad54caaa08717ca28bb6e637e8"

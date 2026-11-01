@@ -22,3 +22,13 @@ variable "app_image_digest" {
   type        = string
 }
 
+variable "service_desired_count" {
+  description = "Number of tasks to run for each application service"
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = contains([0, 1], var.service_desired_count)
+    error_message = "Use 0 or 1 task per service for this learning project."
+  }
+}
