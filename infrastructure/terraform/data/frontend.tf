@@ -97,7 +97,7 @@ resource "aws_s3_bucket_policy" "frontend" {
 
       Condition = {
         ArnLike = {
-          "AWS:SourceArn" = "arn:aws:cloudfront::992382645171:distribution/EY6998IJC3CMS"
+          "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn
         }
       }
     }]

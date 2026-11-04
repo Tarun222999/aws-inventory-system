@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="850" viewBox="0 0 1220 850" role="img" aria-labelledby="title desc">
+  <title id="title">Order and inventory platform architecture</title>
+  <desc id="desc">Browser and API traffic, asynchronous order processing, notifications, reporting and monitoring. The order confirmation email handler is planned.</desc>
+  <style>
+    text { font-family: system-ui, sans-serif; fill: #17233c; }
+    .title { font-size: 29px; font-weight: 700; }
+    .heading { font-size: 19px; font-weight: 700; }
+    .body { font-size: 15px; }
+    .note { font-size: 14px; fill: #465674; }
+    .box { fill: #fff; stroke: #c5d2e5; stroke-width: 1.5; }
+    .band { fill: #edf4ff; }
+    .manual { fill: #fff7e6; }
+    .planned { fill: #f4ecff; stroke: #9873bd; stroke-dasharray: 6 4; }
+  </style>
+  <rect width="1220" height="850" fill="#f7f9fd"/>
+  <text x="36" y="51" class="title">Order and inventory platform</text>
+  <text x="36" y="78" class="note">Project architecture · components are deployed as needed for each learning session</text>
+
+  <rect x="36" y="103" width="1148" height="222" rx="15" class="band"/>
+  <text x="56" y="134" class="heading">Web and API traffic · Terraform managed</text>
+  <text x="56" y="160" class="note">Cloudflare DNS resolves stockroom.tarunapps.com to CloudFront.</text>
+  <rect x="56" y="178" width="530" height="126" rx="10" class="box"/>
+  <text x="74" y="205" class="body">Browser → HTTPS → CloudFront + WAF</text>
+  <text x="74" y="234" class="body">Pages and assets → OAC → private frontend S3</text>
+  <text x="74" y="263" class="body">/api/* → HTTPS + shared origin header → ALB</text>
+  <text x="74" y="289" class="note">ACM certificates protect both HTTPS connections.</text>
+  <rect x="607" y="178" width="557" height="126" rx="10" class="box"/>
+  <text x="625" y="205" class="body">Mumbai VPC · Public subnets contain the ALB</text>
+  <text x="625" y="234" class="body">ALB → ECS Fargate API → RDS in private subnets</text>
+  <text x="625" y="263" class="body">API returns presigned URL → browser uploads to private S3</text>
+  <text x="625" y="289" class="note">WAF is attached. Its Terraform coverage is pending.</text>
+
+  <rect x="36" y="343" width="1148" height="185" rx="15" class="band"/>
+  <text x="56" y="376" class="heading">Order processing · Terraform managed</text>
+  <text x="56" y="408" class="body">API → one RDS transaction saves the order, inventory change, job and pending outbox message.</text>
+  <text x="56" y="438" class="body">ECS publisher polls outbox → SQS → ECS worker polls for jobs. Repeated failures → order DLQ.</text>
+  <text x="56" y="468" class="body">Worker updates job and order in RDS → adds OrderConfirmed to outbox → publisher sends it to EventBridge.</text>
+  <text x="56" y="501" class="note">Docker image → ECR → ECS. IAM roles and security groups control access. Secrets Manager holds database credentials.</text>
+
+  <rect x="36" y="546" width="1148" height="251" rx="15" class="manual"/>
+  <text x="56" y="579" class="heading">Reporting and operations · Earlier manual exercises</text>
+  <text x="56" y="612" class="body">EventBridge rule → SNS → operations email</text>
+  <text x="56" y="641" class="body">App and infrastructure → CloudWatch logs and metrics → alarms → SNS → operations email</text>
+  <text x="56" y="670" class="body">Scheduler → inventory Lambda → reads RDS, writes S3 report, sends link through SES</text>
+  <text x="56" y="699" class="body">Scheduler delivery failures → separate Scheduler DLQ</text>
+  <rect x="56" y="718" width="1108" height="57" rx="10" class="planned"/>
+  <text x="74" y="752" class="body">Planned · OrderConfirmed → EventBridge rule → confirmation Lambda → SES → customer email</text>
+  <text x="36" y="828" class="note">Terraform manages the event bus and ECS log groups. Notification targets, reporting and alarms still need Terraform coverage.</text>
+</svg>

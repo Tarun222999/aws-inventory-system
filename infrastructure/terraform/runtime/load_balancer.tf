@@ -43,19 +43,12 @@ resource "aws_lb" "api" {
 }
 
 
-data "aws_acm_certificate" "api_origin" {
-  domain      = "api-origin.tarunapps.com"
-  statuses    = ["ISSUED"]
-  types       = ["AMAZON_ISSUED"]
-  most_recent = true
-}
-
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.api.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn   = data.aws_acm_certificate.api_origin.arn
+  certificate_arn   = data.terraform_remote_state.data.outputs.api_origin_certificate_arn
 
   default_action {
     type = "fixed-response"
@@ -73,6 +66,17 @@ resource "aws_lb_listener" "https" {
 resource "aws_lb_listener_rule" "api_origin" {
   listener_arn = aws_lb_listener.https.arn
   priority     = 100
+
+  transform {
+    type = "url-rewrite"
+
+    url_rewrite_config {
+      rewrite {
+        regex   = "^/api/(.*)$"
+        replace = "/$1"
+      }
+    }
+  }
 
   condition {
     http_header {

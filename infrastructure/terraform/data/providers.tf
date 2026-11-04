@@ -17,3 +17,24 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
+
+
+
+provider "aws" {
+  alias  = "edge"
+  region = "us-east-1"
+
+  allowed_account_ids = [var.aws_account_id]
+
+  default_tags {
+    tags = {
+      Project     = "aws-order-platform"
+      Environment = "learning"
+      Owner       = var.owner
+      AutoCleanup = "false"
+    }
+  }
+}
+
+
+provider "cloudflare" {}

@@ -32,3 +32,17 @@ output "orders_dlq_arn" {
   description = "Dead-letter queue ARN for integrations and monitoring"
   value       = aws_sqs_queue.orders_dlq.arn
 }
+
+
+output "frontend_distribution_id" {
+  value = aws_cloudfront_distribution.frontend.id
+}
+
+output "frontend_cloudfront_domain" {
+  value = aws_cloudfront_distribution.frontend.domain_name
+}
+
+
+output "api_origin_certificate_arn" {
+  value = aws_acm_certificate_validation.api_origin.certificate_arn
+}

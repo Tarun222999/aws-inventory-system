@@ -15,3 +15,9 @@ variable "owner" {
   type        = string
   default     = "Tarun222999"
 }
+
+
+variable "cloudflare_zone_id" {
+  type    = string
+  default = "519fbc35cfb537c354db08f3e2323bb3"
+}

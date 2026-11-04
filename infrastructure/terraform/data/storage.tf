@@ -12,6 +12,17 @@ import {
   id = "order-platform-phase5-product-images-2bf589a4"
 }
 
+resource "aws_s3_bucket_cors_configuration" "product_images" {
+  bucket = aws_s3_bucket.product_images.id
+
+  cors_rule {
+    allowed_origins = ["https://stockroom.tarunapps.com"]
+    allowed_methods = ["PUT"]
+    allowed_headers = ["content-type", "if-none-match", "x-amz-checksum-sha256"]
+    max_age_seconds = 300
+  }
+}
+
 
 resource "aws_s3_bucket_public_access_block" "product_images" {
   bucket = aws_s3_bucket.product_images.id
