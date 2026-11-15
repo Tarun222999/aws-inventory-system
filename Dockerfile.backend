@@ -1,4 +1,4 @@
-FROM node:22.22.2-alpine
+FROM node:22.23.5-alpine3.23
 
 ARG APP_VERSION=development
 ARG PHASE4_HEALTH_MODE=healthy
@@ -16,9 +16,10 @@ COPY packages/database/package.json packages/database/package.json
 COPY packages/logger/package.json packages/logger/package.json
 COPY packages/events/package.json packages/events/package.json
 
-RUN apk upgrade --no-cache libcrypto3 libssl3
+RUN apk upgrade --no-cache
+RUN npm install --global npm@12.2.2
 
-RUN npm ci \
+RUN npm ci --omit=dev \
     --workspace @order-platform/api \
     --workspace @order-platform/worker \
     --workspace @order-platform/config \
