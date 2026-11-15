@@ -14,8 +14,8 @@ void test("loads the latest generated migration as the runner target", async () 
     ),
   );
 
-  assert.equal(target.idx, 3);
-  assert.match(target.tag, /^0003_/);
+  assert.equal(target.idx, 4);
+  assert.equal(target.tag, "0004_massive_anthem");
   assert.ok(target.when > 0);
 });
 

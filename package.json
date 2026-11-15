@@ -20,7 +20,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "test": "npm test --workspaces --if-present",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "npm run test:unit:backend && npm run test --workspace @order-platform/frontend",
+    "test:unit:backend": "node scripts/run-backend-tests.mjs unit",
+    "test:integration": "node scripts/run-backend-tests.mjs integration",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {

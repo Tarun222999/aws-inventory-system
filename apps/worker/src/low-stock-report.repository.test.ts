@@ -4,20 +4,14 @@ import { after, test } from "node:test";
 
 import { inArray } from "drizzle-orm";
 
-import {
-  createDatabase,
-  inventory,
-  products,
-} from "@order-platform/database";
+import { createDatabase, inventory, products } from "@order-platform/database";
 
 import { listLowStockItems } from "./low-stock-report.repository.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error(
-    "DATABASE_URL is required for integration tests",
-  );
+  throw new Error("DATABASE_URL is required for integration tests");
 }
 
 const connection = createDatabase(databaseUrl, {
@@ -29,19 +23,13 @@ const connection = createDatabase(databaseUrl, {
 after(async () => connection.close());
 
 void test("returns only products at or below the stock threshold", async () => {
-  const suffix = randomUUID()
-    .slice(0, 8)
-    .toUpperCase();
+  const suffix = randomUUID().slice(0, 8).toUpperCase();
 
   const outOfStockId = randomUUID();
   const atThresholdId = randomUUID();
   const healthyStockId = randomUUID();
 
-  const productIds: string[]  = [
-    outOfStockId,
-    atThresholdId,
-    healthyStockId,
-  ];
+  const productIds: string[] = [outOfStockId, atThresholdId, healthyStockId];
 
   const outOfStockSku = `TEST-A-OUT-${suffix}`;
   const atThresholdSku = `TEST-B-LIMIT-${suffix}`;
@@ -84,10 +72,7 @@ void test("returns only products at or below the stock threshold", async () => {
       },
     ]);
 
-    const result = await listLowStockItems(
-      connection.database,
-      5,
-    );
+    const result = await listLowStockItems(connection.database, 5);
 
     const testRows = result.filter((item) =>
       productIds.includes(item.productId),
@@ -111,9 +96,7 @@ void test("returns only products at or below the stock threshold", async () => {
     );
 
     assert.equal(
-      testRows.some(
-        (item) => item.productId === healthyStockId,
-      ),
+      testRows.some((item) => item.productId === healthyStockId),
       false,
     );
   } finally {
