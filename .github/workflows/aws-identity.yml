@@ -1,0 +1,28 @@
+name: AWS identity test
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  identity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::992382645171:role/order-platform-github-identity-test
+          aws-region: ap-south-1
+          allowed-account-ids: "992382645171"
+          role-duration-seconds: 900
+          role-session-name: github-identity-${{ github.run_id }}
+          retry-max-attempts: 2
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
