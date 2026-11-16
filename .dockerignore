@@ -8,3 +8,12 @@ coverage
 apps/*/coverage
 packages/*/coverage
 *.log
+
+.env.*
+!.env.example
+**/.aws
+.artifacts
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan

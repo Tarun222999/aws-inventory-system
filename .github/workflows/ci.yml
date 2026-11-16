@@ -1,0 +1,168 @@
+name: PR validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Source checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.22.2"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check types, linit and formatting
+        run: npm run check
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.22.2"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run backend and frontend unit tests
+        run: npm run test:unit
+
+  integration:
+    name: Database integration tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci-local-only
+          POSTGRES_DB: order_platform_ci
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d order_platform_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+          --tmpfs /var/lib/postgresql/data
+
+    env:
+      DATABASE_URL: postgresql://ci_user:ci-local-only@127.0.0.1:55432/order_platform_ci
+      AWS_EC2_METADATA_DISABLED: "true"
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.22.2"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Apply committed migrations
+        run: npm run db:migrate
+
+      - name: Run database integration tests
+        run: npm run test:integration
+
+  build:
+    name: Production builds
+    needs: [checks, unit, integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.22.2"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Scan source dependencies and possible secrets
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.2
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+          format: table
+          cache: false
+          skip-dirs: "**/node_modules,**/dist,.git,.artifacts,.cache"
+
+      - name: Build production applications
+        run: npm run build
+
+      - name: Build backend container
+        run: |
+          docker build \
+            --file Dockerfile.backend \
+            --build-arg APP_VERSION="$GITHUB_SHA" \
+            --tag order-platform-backend:ci \
+            .
+
+      - name: Scan built backend image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.2
+          skip-setup-trivy: true
+          scan-type: image
+          image-ref: order-platform-backend:ci
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+          format: table
+          cache: false

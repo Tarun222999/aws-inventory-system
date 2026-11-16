@@ -3,4 +3,5 @@ dist/
 coverage/
 packages/database/migrations/
 docs/
+developer_cert/
 AGENTS.md

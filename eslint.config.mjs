@@ -9,6 +9,7 @@ export default tseslint.config(
       "**/dist/**",
       "**/coverage/**",
       "**/node_modules/**",
+      ".artifacts/**",
     ],
   },
   eslint.configs.recommended,
@@ -21,6 +22,25 @@ export default tseslint.config(
           allowDefaultProject: ["packages/database/drizzle.config.ts"],
         },
         tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+
+  {
+    files: [
+      "infrastructure/terraform/runtime/api-smoke.mjs",
+      "scripts/**/*.mjs",
+    ],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        fetch: "readonly",
+        AbortSignal: "readonly",
+        URL: "readonly",
       },
     },
   },
