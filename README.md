@@ -7,7 +7,6 @@ TypeScript, Node.js, PostgreSQL, and Docker.
 
 ![AWS Order and Inventory Platform architecture](./project_design.png)
 
-
 ## Local prerequisites
 
 - Node.js 22
