@@ -7,8 +7,6 @@ TypeScript, Node.js, PostgreSQL, and Docker.
 
 ![AWS Order and Inventory Platform architecture](./project_design.png)
 
-Phase 1 is local-only. See `docs/PHASE-1-NOTES.md` for the current scope,
-architecture, and evidence checklist.
 
 ## Local prerequisites
 
