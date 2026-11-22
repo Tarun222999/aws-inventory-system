@@ -33,7 +33,10 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Check types, linit and formatting
+      - name: Reject High and Critical npm advisories
+        run: npm audit --audit-level=high
+
+      - name: Check types, lint and formatting
         run: npm run check
 
   unit:
