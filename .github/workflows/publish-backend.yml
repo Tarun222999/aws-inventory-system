@@ -1,0 +1,265 @@
+name: Publish backend image
+
+on:
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful main CI run ID
+        required: true
+        type: string
+      ci_run_attempt:
+        description: Approved CI attempt number, usually 1
+        required: true
+        type: string
+      expected_sha:
+        description: Full source commit SHA approved for publication
+        required: true
+        type: string
+      dry_run:
+        description: Verify the CI image without publishing to ECR
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  actions: read
+
+concurrency:
+  group: ecr-backend-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    permissions:
+      actions: read
+      id-token: write
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CI_RUN_ID: ${{ inputs.ci_run_id }}
+      APPROVED_CI_ATTEMPT: ${{ inputs.ci_run_attempt }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      AWS_REGION: ap-south-1
+      ECR_REGISTRY: 992382645171.dkr.ecr.ap-south-1.amazonaws.com
+      ECR_REPOSITORY: order-platform-phase4-api
+
+    steps:
+      - name: Verify selected CI run
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          [[ "$CI_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$APPROVED_CI_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          workflow_id=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml" \
+            --jq '.id')
+
+          run_json=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID")
+
+          jq -e \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg sha "$EXPECTED_SHA" \
+            --argjson workflow_id "$workflow_id" \
+            --argjson attempt "$APPROVED_CI_ATTEMPT" \
+            '.repository.full_name == $repo and
+             .head_repository.full_name == $repo and
+             .workflow_id == $workflow_id and
+             .event == "push" and
+             .head_branch == "main" and
+             .head_sha == $sha and
+             .status == "completed" and
+             .conclusion == "success" and
+             .run_attempt == $attempt' \
+            <<< "$run_json" > /dev/null
+
+          attempt=$(jq -er '.run_attempt' <<< "$run_json")
+          [[ "$attempt" =~ ^[1-9][0-9]*$ ]]
+
+          echo "CI_RUN_ATTEMPT=$attempt" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=backend-image-$EXPECTED_SHA-$CI_RUN_ID-$attempt" \
+            >> "$GITHUB_ENV"
+
+      - name: Download exact verified artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifacts=$(gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID/artifacts?per_page=100")
+
+          artifact=$(jq -ce --arg name "$ARTIFACT_NAME" \
+            '[.[].artifacts[] |
+              select(.name == $name and .expired == false)] |
+             if length == 1 then .[0]
+             else error("Expected exactly one unexpired CI artifact")
+             end' <<< "$artifacts")
+
+          artifact_id=$(jq -er '.id' <<< "$artifact")
+          digest=$(jq -er \
+            '.digest | select(test("^sha256:[0-9a-f]{64}$"))' \
+            <<< "$artifact")
+
+          archive="$RUNNER_TEMP/backend-release.zip"
+
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+            > "$archive"
+
+          printf '%s  %s\n' "${digest#sha256:}" "$archive" |
+            sha256sum --check --strict
+
+          mkdir -p "$RUNNER_TEMP/backend-release"
+          unzip -q "$archive" -d "$RUNNER_TEMP/backend-release"
+
+          echo "Selected CI run: $CI_RUN_ID"
+          echo "Selected commit: $EXPECTED_SHA"
+          echo "Selected artifact: $artifact_id"
+
+      - name: Validate and load the CI image
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/backend-release"
+
+          test "$(wc -l < SHA256SUMS)" -eq 2
+          grep -Eq '^[0-9a-f]{64}  backend-image\.tar\.gz$' SHA256SUMS
+          grep -Eq '^[0-9a-f]{64}  image-metadata\.json$' SHA256SUMS
+          sha256sum --check --strict SHA256SUMS
+
+          jq -e \
+            --arg sha "$EXPECTED_SHA" \
+            --arg run_id "$CI_RUN_ID" \
+            --arg attempt "$CI_RUN_ATTEMPT" \
+            '.schemaVersion == 1 and
+             .commit == $sha and
+             .runId == $run_id and
+             .runAttempt == $attempt and
+             .platform == "linux/amd64" and
+             .revisionLabel == $sha and
+             .localTag == "order-platform-backend:ci"' \
+            image-metadata.json > /dev/null
+
+          image_id=$(jq -er \
+            '.imageId | select(test("^sha256:[0-9a-f]{64}$"))' \
+            image-metadata.json)
+
+          gzip -dc backend-image.tar.gz | docker load
+
+          docker image inspect order-platform-backend:ci |
+            jq -e \
+              --arg image_id "$image_id" \
+              --arg sha "$EXPECTED_SHA" \
+              --arg version "APP_VERSION=$EXPECTED_SHA" \
+              '.[0] |
+               .Id == $image_id and
+               (.Os + "/" + .Architecture) == "linux/amd64" and
+               .Config.Labels["org.opencontainers.image.revision"] == $sha and
+               (.Config.Env | index($version) != null)' \
+              > /dev/null
+
+          echo "VERIFIED_IMAGE_ID=$image_id" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=sha-$EXPECTED_SHA" >> "$GITHUB_ENV"
+
+          {
+            echo "### Verified backend candidate"
+            echo "- Commit: $EXPECTED_SHA"
+            echo "- CI run: $CI_RUN_ID, attempt $CI_RUN_ATTEMPT"
+            echo "- Local image ID: $image_id"
+            echo "- Platform: linux/amd64"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Sign in with the publishing role
+        if: ${{ !inputs.dry_run }}
+        id: aws_auth
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::992382645171:role/order-platform-github-ecr-publisher
+          aws-region: ap-south-1
+          allowed-account-ids: "992382645171"
+          role-duration-seconds: 900
+          role-session-name: ecr-publish-${{ github.run_id }}
+          unset-current-credentials: true
+          retry-max-attempts: 2
+          action-timeout-s: 60
+
+      - name: Require an unused immutable tag
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          lookup_error="$RUNNER_TEMP/ecr-tag-check.err"
+
+          if aws ecr describe-images \
+            --region "$AWS_REGION" \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=$IMAGE_TAG" \
+            > "$RUNNER_TEMP/existing-image.json" 2> "$lookup_error"; then
+            echo "::error::Image tag already exists: $IMAGE_TAG"
+            exit 1
+          else
+            if ! grep -q 'ImageNotFoundException' "$lookup_error"; then
+              cat "$lookup_error" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Sign Docker in to ECR
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecr get-login-password --region "$AWS_REGION" |
+            docker login \
+              --username AWS \
+              --password-stdin "$ECR_REGISTRY"
+
+      - name: Push the verified image and confirm its digest
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_uri="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          push_log="$RUNNER_TEMP/backend-push.log"
+
+          docker tag "$VERIFIED_IMAGE_ID" "$image_uri"
+          docker push "$image_uri" 2>&1 | tee "$push_log"
+
+          pushed_digest=$(sed -nE \
+            's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' \
+            "$push_log" | tail -n 1)
+          [[ "$pushed_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+
+          remote_image=$(aws ecr describe-images \
+            --region "$AWS_REGION" \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=$IMAGE_TAG" \
+            --query 'imageDetails[0]' \
+            --output json)
+
+          remote_digest=$(jq -er '.imageDigest' <<< "$remote_image")
+          test "$remote_digest" = "$pushed_digest"
+
+          reported_bytes=$(jq -er '.imageSizeInBytes' <<< "$remote_image")
+          digest_uri="$ECR_REGISTRY/$ECR_REPOSITORY@$remote_digest"
+
+          {
+            echo "### Published backend image"
+            echo "- Source commit: $EXPECTED_SHA"
+            echo "- CI run: $CI_RUN_ID, attempt $CI_RUN_ATTEMPT"
+            echo "- Tag: $IMAGE_TAG"
+            echo "- Digest: $remote_digest"
+            echo "- Deployment reference: $digest_uri"
+            echo "- ECR reported image bytes: $reported_bytes"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove Docker registry credentials
+        if: ${{ always() && steps.aws_auth.outcome == 'success' }}
+        shell: bash
+        run: docker logout "$ECR_REGISTRY"

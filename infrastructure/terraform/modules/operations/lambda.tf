@@ -111,7 +111,7 @@ resource "aws_lambda_function" "low_stock" {
 
   vpc_config {
     subnet_ids         = [var.private_subnet_id]
-    security_group_ids = [var.app_security_group]
+    security_group_ids = [var.app_security_group, aws_security_group.report_lambda.id]
   }
 
   environment {

@@ -21,6 +21,6 @@
     "@order-platform/database": "0.1.0",
     "@order-platform/logger": "0.1.0",
     "drizzle-orm": "0.45.2",
-    "zod": "3.25.76"
+    "zod": "4.6.7"
   }
 }
