@@ -3,6 +3,10 @@
 A production-shaped learning application built incrementally with React,
 TypeScript, Node.js, PostgreSQL, and Docker.
 
+## Architecture
+
+![AWS Order and Inventory Platform architecture](./project_design.png)
+
 Phase 1 is local-only. See `docs/PHASE-1-NOTES.md` for the current scope,
 architecture, and evidence checklist.
 
