@@ -2,6 +2,20 @@ data "aws_route_table" "report" {
   subnet_id = var.private_subnet_id
 }
 
+resource "aws_security_group" "report_lambda" {
+  name        = "${local.prefix}-report-lambda"
+  description = "Dedicated group for the report Lambda network interface lifecycle"
+  vpc_id      = var.vpc_id
+
+  # A security group cannot be deleted while the Lambda ENI still uses it.
+  # Keep the execution role's ENI permissions until that dependency clears.
+  depends_on = [aws_iam_role_policy.report]
+
+  timeouts {
+    delete = "30m"
+  }
+}
+
 resource "aws_security_group" "report_endpoints" {
   name   = "${local.prefix}-report-endpoints"
   vpc_id = var.vpc_id
@@ -91,7 +105,7 @@ resource "aws_scheduler_schedule" "low_stock" {
   target {
     arn      = aws_lambda_function.low_stock.arn
     role_arn = aws_iam_role.scheduler.arn
-    input    = jsonencode({ scheduledTime = "<aws.scheduler.scheduled-time>" })
+    input    = "{\"scheduledTime\":\"<aws.scheduler.scheduled-time>\"}"
 
     retry_policy {
       maximum_event_age_in_seconds = 900

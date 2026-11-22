@@ -26,14 +26,23 @@ resource "aws_sns_topic_policy" "operations" {
         Sid       = "AccountOwner"
         Effect    = "Allow"
         Principal = { AWS = "arn:aws:iam::${var.account_id}:root" }
-        Action    = "sns:*"
-        Resource  = aws_sns_topic.operations.arn
+        Action = [
+          "SNS:GetTopicAttributes",
+          "SNS:SetTopicAttributes",
+          "SNS:AddPermission",
+          "SNS:RemovePermission",
+          "SNS:DeleteTopic",
+          "SNS:Subscribe",
+          "SNS:ListSubscriptionsByTopic",
+          "SNS:Publish"
+        ]
+        Resource = aws_sns_topic.operations.arn
       },
       {
         Sid       = "CloudWatchAlarms"
         Effect    = "Allow"
         Principal = { Service = "cloudwatch.amazonaws.com" }
-        Action    = "sns:Publish"
+        Action    = "SNS:Publish"
         Resource  = aws_sns_topic.operations.arn
         Condition = {
           StringEquals = { "aws:SourceAccount" = var.account_id }
